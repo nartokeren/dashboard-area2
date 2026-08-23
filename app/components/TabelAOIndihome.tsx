@@ -75,24 +75,24 @@ export default function TabelAOIndihome({
   // ============================================
   const calculateBranchData = () => {
     const totalRE = filteredData.length;
-    const totalPS = filteredData.filter(row => row['STATUS'] === 'COMPWORK').length;
-    const totalCANCEL = filteredData.filter(row => row['STATUS'] === 'CANCLWORK').length;
-    const totalKendalaTeknik = filteredData.filter(row => 
+    const totalPS = filteredData.filter((row: any) => row['STATUS'] === 'COMPWORK').length;
+    const totalCANCEL = filteredData.filter((row : any) => row['STATUS'] === 'CANCLWORK').length;
+    const totalKendalaTeknik = filteredData.filter((row : any) => 
       row['STATUS'] === 'WORKFAIL' && 
       (row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIK' || row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIS')
     ).length;
-    const totalKendalaPelanggan = filteredData.filter(row => 
+    const totalKendalaPelanggan = filteredData.filter((row: any) => 
       row['STATUS'] === 'WORKFAIL' && 
       row['ERRORCODE_AKHIR'] === 'KENDALA PELANGGAN'
     ).length;
-    const totalKendalaLainnya = filteredData.filter(row => 
+    const totalKendalaLainnya = filteredData.filter((row: any) => 
       row['STATUS'] === 'WORKFAIL' && 
       row['ERRORCODE_AKHIR'] === 'KENDALA LAINNYA'
     ).length;
     const psRePercent = totalRE > 0 ? (totalPS / totalRE) * 100 : 0;
 
     const branchMap = new Map<string, any>();
-    filteredData.forEach(row => {
+    filteredData.forEach((row: any) => {
       const branch = row['DISTRICT_TIF'] || 'UNKNOWN';
       const regional = regionalMapping[branch] || 'LAINNYA';
       const status = row['STATUS'] || '';
