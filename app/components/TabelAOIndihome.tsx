@@ -233,10 +233,29 @@ export default function TabelAOIndihome({
       if (status === 'VALSTART' && statusDate && isSameDay(statusDate, new Date())) bd.valstart++;
       if (status === 'VALCOMP' && statusDate && isSameDay(statusDate, new Date())) bd.valcomp++;
 
-      if (status === 'COMPWORK' && statusDate && isSameDay(statusDate, new Date())) bd.psHI++;
-      if (dateCreated && isSameDay(dateCreated, new Date())) bd.reHI++;
-      if (status === 'COMPWORK' && statusDate && isSameMonth(statusDate, new Date())) bd.psMTD++;
-      if (dateCreated && isSameMonth(dateCreated, new Date())) bd.reMTD++;
+      // PS HI & RE HI (HARI INI)
+if (status === 'COMPWORK' && statusDate && isSameDay(statusDate, new Date())) bd.psHI++;
+if (dateCreated && isSameDay(dateCreated, new Date())) bd.reHI++;
+
+// PS MTD (FILTER STATUSDATE)
+if (status === 'COMPWORK' && statusDate) {
+  const statusFrom = statusDateFrom ? startOfDay(new Date(statusDateFrom)) : null;
+  const statusTo = statusDateTo ? endOfDay(new Date(statusDateTo)) : null;
+  let match = true;
+  if (statusFrom && isBefore(statusDate, statusFrom)) match = false;
+  if (statusTo && isAfter(statusDate, statusTo)) match = false;
+  if (match) bd.psMTD++;
+}
+
+// RE MTD (FILTER DATECREATED)
+if (dateCreated) {
+  const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
+  const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
+  let match = true;
+  if (fromDate && isBefore(dateCreated, fromDate)) match = false;
+  if (toDate && isAfter(dateCreated, toDate)) match = false;
+  if (match) bd.reMTD++;
+}
     });
 
     const branchArray = Array.from(branchMap.values()).map((item: any) => {
