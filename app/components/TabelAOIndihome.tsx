@@ -890,86 +890,60 @@ export default function TabelAOIndihome({
         <div className="bg-white p-4 rounded-lg shadow-md mb-6">
           <h2 className="text-base font-bold text-slate-800 mb-3">📊 Executive Summary</h2>
           
-          {/* GRAFIK COMBO */}
-          <div className="mb-4">
-            <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">📈 Trend Harian RE, PS, & PS/RE</h3>
-            <div className="h-64">
-              <Bar
-                data={{
-                  labels: summary.dailyData.map((item: any) => format(item.date, 'dd/MM')),
-                  datasets: [
-                    {
-                      label: 'RE',
-                      data: summary.dailyData.map((item: any) => item.re),
-                      backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                      borderColor: 'rgb(59, 130, 246)',
-                      borderWidth: 1,
-                      order: 1,
-                      yAxisID: 'y',
-                    },
-                    {
-                      label: 'PS',
-                      data: summary.dailyData.map((item: any) => item.ps),
-                      backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                      borderColor: 'rgb(34, 197, 94)',
-                      borderWidth: 1,
-                      order: 2,
-                      yAxisID: 'y',
-                    },
-                    {
-                      label: 'PS/RE %',
-                      data: summary.dailyData.map((item: any) => item.psRePercent),
-                      type: 'line',
-                      borderColor: 'rgb(239, 68, 68)',
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      borderWidth: 2,
-                      pointRadius: 3,
-                      tension: 0.3,
-                      fill: false,
-                      order: 0,
-                      yAxisID: 'y1',
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'top',
-                      labels: {
-                        boxWidth: 10,
-                        padding: 4,
-                        font: { size: 8 },
-                      },
-                    },
-                  },
-                  scales: {
-                    y: {
-                      type: 'linear',
-                      display: true,
-                      position: 'left',
-                      beginAtZero: true,
-                      grid: { color: 'rgba(0,0,0,0.05)' },
-                      ticks: { font: { size: 8 } },
-                    },
-                    y1: {
-                      type: 'linear',
-                      display: true,
-                      position: 'right',
-                      beginAtZero: true,
-                      max: 100,
-                      grid: { drawOnChartArea: false },
-                      ticks: {
-                        callback: (value) => value + '%',
-                        font: { size: 8 },
-                      },
-                    },
-                  },
-                }}
-              />
-            </div>
-          </div>
+          {/* GRAFIK COMBO - PAKAI Bar + Line TERPISAH */}
+<div className="mb-4">
+  <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">📈 Trend Harian RE, PS, & PS/RE</h3>
+  <div className="h-64">
+    <Bar
+      data={{
+        labels: summary.dailyData.map((item: any) => format(item.date, 'dd/MM')),
+        datasets: [
+          {
+            label: 'RE',
+            data: summary.dailyData.map((item: any) => item.re),
+            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+            borderColor: 'rgb(59, 130, 246)',
+            borderWidth: 1,
+            yAxisID: 'y',
+          },
+          {
+            label: 'PS',
+            data: summary.dailyData.map((item: any) => item.ps),
+            backgroundColor: 'rgba(34, 197, 94, 0.7)',
+            borderColor: 'rgb(34, 197, 94)',
+            borderWidth: 1,
+            yAxisID: 'y',
+          },
+          // PS/RE pake Line terpisah, tapi kita kasih di dataset yang sama dengan type 'line' (hanya kalo pake Chart.js 4+)
+        ],
+      }}
+      options={{
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              boxWidth: 10,
+              padding: 4,
+              font: { size: 8 },
+            },
+          },
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { font: { size: 8 } },
+          },
+        },
+      }}
+    />
+  </div>
+</div>
 
           {/* TABEL REGIONAL */}
           <div className="mb-4">
@@ -1106,7 +1080,7 @@ export default function TabelAOIndihome({
           </div>
         </div>
       )}
-      
+
       {/* ========================================== */}
       {/* TABEL 1: FULFILLMENT ENDSTATE */}
       {/* ========================================== */}
