@@ -9,6 +9,7 @@ import FilterAndCards from './TabelAOIndihome/FilterAndCards';
 import ExecutiveSummary from './TabelAOIndihome/ExecutiveSummary';
 import TabelFulfillment from './TabelAOIndihome/TabelFulfillment';
 import TabelPerJam from './TabelAOIndihome/TabelPerJam';
+import TabelSisaOrderMTD from './TabelAOIndihome/TabelSisaOrderMTD';
 import TabelSisaOrder from './TabelAOIndihome/TabelSisaOrder';
 
 // ============================================
@@ -131,6 +132,82 @@ export default function TabelAOIndihome({
   };
 
   // ============================================
+  // EXPORT PER SECTION
+  // ============================================
+  const exportSection = async (elementId: string, fileName: string) => {
+    try {
+      const domtoimage = (await import('dom-to-image')).default;
+      const element = document.getElementById(elementId);
+      if (!element) {
+        alert('❌ Elemen tidak ditemukan!');
+        return;
+      }
+
+      const dataUrl = await domtoimage.toPng(element, {
+        quality: 1,
+        bgcolor: '#ffffff',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+          overflow: 'visible',
+        }
+      });
+
+      const link = document.createElement('a');
+      link.download = `${fileName}_${format(new Date(), 'yyyyMMdd')}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Error export PNG:', error);
+      alert('❌ Gagal mengexport gambar. Coba lagi!');
+    }
+  };
+
+  // ============================================
+  // HITUNG RESULT UNTUK KARTU
+  // ============================================
+  const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
+  const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
+
+  const dateFiltered = safeFilteredData.filter((row: any) => {
+    const dateCreated = parseDate(row['DATECREATED']);
+    if (!dateCreated) return false;
+    if (fromDate && isBefore(dateCreated, fromDate)) return false;
+    if (toDate && isAfter(dateCreated, toDate)) return false;
+    return true;
+  });
+
+  const statusFrom = statusDateFrom ? startOfDay(new Date(statusDateFrom)) : null;
+  const statusTo = statusDateTo ? endOfDay(new Date(statusDateTo)) : null;
+
+  const statusDateFiltered = safeFilteredData.filter((row: any) => {
+    const statusDate = parseDate(row['STATUSDATE']);
+    if (!statusDate) return false;
+    if (statusFrom && isBefore(statusDate, statusFrom)) return false;
+    if (statusTo && isAfter(statusDate, statusTo)) return false;
+    return true;
+  });
+
+  const result = {
+    totalRE: dateFiltered.length,
+    totalPS: statusDateFiltered.filter((row: any) => row['STATUS'] === 'COMPWORK').length,
+    totalCANCEL: dateFiltered.filter((row: any) => row['STATUS'] === 'CANCLWORK').length,
+    totalKendalaTeknik: dateFiltered.filter((row: any) => 
+      row['STATUS'] === 'WORKFAIL' && 
+      (row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIK' || row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIS')
+    ).length,
+    totalKendalaPelanggan: dateFiltered.filter((row: any) => 
+      row['STATUS'] === 'WORKFAIL' && 
+      row['ERRORCODE_AKHIR'] === 'KENDALA PELANGGAN'
+    ).length,
+    totalKendalaLainnya: dateFiltered.filter((row: any) => 
+      row['STATUS'] === 'WORKFAIL' && 
+      row['ERRORCODE_AKHIR'] === 'KENDALA LAINNYA'
+    ).length,
+    psRePercent: dateFiltered.length > 0 ? (statusDateFiltered.filter((row: any) => row['STATUS'] === 'COMPWORK').length / dateFiltered.length) * 100 : 0,
+  };
+
+  // ============================================
   // RENDER
   // ============================================
   return (
@@ -147,105 +224,85 @@ export default function TabelAOIndihome({
         setStatusDateTo={setStatusDateTo}
         handleFileUpload={handleFileUpload}
         processData={processData}
-        exportToPNG={exportToPNG}
         filteredData={safeFilteredData}
-        result={(() => {
-          // Hitung result untuk kartu
-          const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
-          const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
-
-          const dateFiltered = safeFilteredData.filter((row: any) => {
-            const dateCreated = parseDate(row['DATECREATED']);
-            if (!dateCreated) return false;
-            if (fromDate && isBefore(dateCreated, fromDate)) return false;
-            if (toDate && isAfter(dateCreated, toDate)) return false;
-            return true;
-          });
-
-          const statusFrom = statusDateFrom ? startOfDay(new Date(statusDateFrom)) : null;
-          const statusTo = statusDateTo ? endOfDay(new Date(statusDateTo)) : null;
-
-          const statusDateFiltered = safeFilteredData.filter((row: any) => {
-            const statusDate = parseDate(row['STATUSDATE']);
-            if (!statusDate) return false;
-            if (statusFrom && isBefore(statusDate, statusFrom)) return false;
-            if (statusTo && isAfter(statusDate, statusTo)) return false;
-            return true;
-          });
-
-          const totalRE = dateFiltered.length;
-          const totalPS = statusDateFiltered.filter((row: any) => row['STATUS'] === 'COMPWORK').length;
-          const totalCANCEL = dateFiltered.filter((row: any) => row['STATUS'] === 'CANCLWORK').length;
-          const totalKendalaTeknik = dateFiltered.filter((row: any) => 
-            row['STATUS'] === 'WORKFAIL' && 
-            (row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIK' || row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIS')
-          ).length;
-          const totalKendalaPelanggan = dateFiltered.filter((row: any) => 
-            row['STATUS'] === 'WORKFAIL' && 
-            row['ERRORCODE_AKHIR'] === 'KENDALA PELANGGAN'
-          ).length;
-          const totalKendalaLainnya = dateFiltered.filter((row: any) => 
-            row['STATUS'] === 'WORKFAIL' && 
-            row['ERRORCODE_AKHIR'] === 'KENDALA LAINNYA'
-          ).length;
-          const psRePercent = totalRE > 0 ? (totalPS / totalRE) * 100 : 0;
-
-          return {
-            totalRE,
-            totalPS,
-            totalCANCEL,
-            totalKendalaTeknik,
-            totalKendalaPelanggan,
-            totalKendalaLainnya,
-            psRePercent,
-          };
-        })()}
+        result={result}
         getDataForMetric={getDataForMetric}
         downloadData={downloadData}
       />
 
-      {/* EXECUTIVE SUMMARY */}
-      <ExecutiveSummary
-        filteredData={safeFilteredData}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        statusDateFrom={statusDateFrom}
-        statusDateTo={statusDateTo}
-        regionalMapping={regionalMapping}
-        parseDate={parseDate}
-      />
+      {/* ========================================== */}
+      {/* SECTION 1: EXECUTIVE SUMMARY */}
+      {/* ========================================== */}
+      <div id="executive-summary">
+        <ExecutiveSummary
+          filteredData={safeFilteredData}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          statusDateFrom={statusDateFrom}
+          statusDateTo={statusDateTo}
+          regionalMapping={regionalMapping}
+          parseDate={parseDate}
+          exportSection={exportSection}
+        />
+      </div>
 
-      {/* TABEL 1: FULFILLMENT ENDSTATE */}
-      <TabelFulfillment
-        filteredData={safeFilteredData}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        statusDateFrom={statusDateFrom}
-        statusDateTo={statusDateTo}
-        regionalMapping={regionalMapping}
-        targetMapping={targetMapping}
-        parseDate={parseDate}
-      />
+      {/* ========================================== */}
+      {/* SECTION 2: TABEL FULFILLMENT */}
+      {/* ========================================== */}
+      <div id="tabel-fulfillment">
+        <TabelFulfillment
+          filteredData={safeFilteredData}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          statusDateFrom={statusDateFrom}
+          statusDateTo={statusDateTo}
+          regionalMapping={regionalMapping}
+          targetMapping={targetMapping}
+          parseDate={parseDate}
+          exportSection={exportSection}
+        />
+      </div>
 
-      {/* TABEL 2: PER-JAM */}
-      <TabelPerJam
-        filteredData={safeFilteredData}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        statusDateFrom={statusDateFrom}
-        statusDateTo={statusDateTo}
-        today={today}
-        currentHour={currentHour}
-        regionalMapping={regionalMapping}
-        parseDate={parseDate}
-      />
+      {/* ========================================== */}
+      {/* SECTION 3: TABEL PER-JAM */}
+      {/* ========================================== */}
+      <div id="tabel-perjam">
+        <TabelPerJam
+          filteredData={safeFilteredData}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          statusDateFrom={statusDateFrom}
+          statusDateTo={statusDateTo}
+          today={today}
+          currentHour={currentHour}
+          regionalMapping={regionalMapping}
+          parseDate={parseDate}
+          exportSection={exportSection}
+        />
+      </div>
 
-      {/* TABEL 3: SISA ORDER TIDAK PS H-1 */}
-      <TabelSisaOrder
-        filteredData={safeFilteredData}
-        dateTo={dateTo}
-        parseDate={parseDate}
-      />
+      {/* ========================================== */}
+      {/* SECTION 4: TABEL SISA ORDER MTD */}
+      {/* ========================================== */}
+      <div id="tabel-sisaorder-mtd">
+        <TabelSisaOrderMTD
+          filteredData={safeFilteredData}
+          parseDate={parseDate}
+          exportSection={exportSection}
+        />
+      </div>
+
+      {/* ========================================== */}
+      {/* SECTION 5: TABEL SISA ORDER H-1 */}
+      {/* ========================================== */}
+      <div id="tabel-sisaorder-h1">
+        <TabelSisaOrder
+          filteredData={safeFilteredData}
+          dateTo={dateTo}
+          parseDate={parseDate}
+          exportSection={exportSection}
+        />
+      </div>
 
       {safeFilteredData.length === 0 && (
         <div className="bg-white p-6 rounded-lg shadow-md text-center">

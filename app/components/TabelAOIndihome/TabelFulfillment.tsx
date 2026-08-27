@@ -12,6 +12,7 @@ interface TabelFulfillmentProps {
   regionalMapping: any;
   targetMapping: any;
   parseDate: (value: any) => Date | null;
+  exportSection?: (elementId: string, fileName: string) => void;
 }
 
 export default function TabelFulfillment({
@@ -23,6 +24,7 @@ export default function TabelFulfillment({
   regionalMapping,
   targetMapping,
   parseDate,
+  exportSection,
 }: TabelFulfillmentProps) {
   // ============================================
   // HITUNG DATA
@@ -332,8 +334,18 @@ export default function TabelFulfillment({
   // RENDER
   // ============================================
   return (
-    <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mb-6" id="table-container">
-      <h2 className="text-sm font-bold text-slate-800 mb-2">📋 (New Sales) Fulfillment Endstate AREA 2</h2>
+    <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mb-6 relative" id="table-container">
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-sm font-bold text-slate-800">📋 (New Sales) Fulfillment Endstate AREA 2</h2>
+        {exportSection && (
+          <button
+            onClick={() => exportSection('tabel-fulfillment', 'Fulfillment_Endstate')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        )}
+      </div>
       <table className="w-full text-[10px] border-collapse">
         <thead>
           <tr className="bg-slate-800 text-white">

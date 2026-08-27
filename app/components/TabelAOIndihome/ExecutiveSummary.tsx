@@ -34,6 +34,7 @@ interface ExecutiveSummaryProps {
   statusDateTo: string;
   regionalMapping: any;
   parseDate: (value: any) => Date | null;
+  exportSection?: (elementId: string, fileName: string) => void;
 }
 
 export default function ExecutiveSummary({
@@ -44,6 +45,7 @@ export default function ExecutiveSummary({
   statusDateTo,
   regionalMapping,
   parseDate,
+  exportSection,
 }: ExecutiveSummaryProps) {
   // ============================================
   // HITUNG DATA EXECUTIVE SUMMARY
@@ -103,7 +105,7 @@ export default function ExecutiveSummary({
     const grandTotalAvgRE = Math.round(grandTotalRE / daysInFilter);
     const grandTotalAvgPS = Math.round(grandTotalPS / daysInFilter);
 
-    // Daily Data untuk Grafik Combo
+    // Daily Data
     const dailyMap = new Map<string, { re: number, ps: number }>();
 
     reSummaryData.forEach((row: any) => {
@@ -206,16 +208,24 @@ export default function ExecutiveSummary({
   // RENDER
   // ============================================
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+    <div className="bg-white p-4 rounded-lg shadow-md mb-6 relative">
+      {/* Tombol Export PNG */}
+      <div className="absolute top-2 right-2">
+        {exportSection && (
+          <button
+            onClick={() => exportSection('executive-summary', 'Executive_Summary')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        )}
+      </div>
+      
       <h2 className="text-base font-bold text-slate-800 mb-3">📊 Executive Summary</h2>
       
-            {/* ========================================== */}
-      {/* GRAFIK BAR (RE & PS) */}
-      {/* ========================================== */}
+      {/* GRAFIK BAR RE & PS */}
       <div className="mb-4 w-full">
-        <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">
-          📈 RE & PS per Hari
-        </h3>
+        <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">📈 RE & PS per Hari</h3>
         <div className="h-48 w-full">
           <Bar
             data={{
@@ -236,38 +246,19 @@ export default function ExecutiveSummary({
             options={{
               responsive: true,
               maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'top',
-                  labels: { boxWidth: 10, font: { size: 8 } },
-                },
-              },
+              plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 8 } } } },
               scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: { font: { size: 8 } },
-                },
-                x: {
-                  ticks: {
-                    maxRotation: 45,
-                    font: { size: 8 },
-                    autoSkip: true,
-                    maxTicksLimit: 15,
-                  },
-                },
+                y: { beginAtZero: true, ticks: { font: { size: 8 } } },
+                x: { ticks: { maxRotation: 45, font: { size: 8 } } },
               },
             }}
           />
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* GRAFIK LINE (PS/RE %) */}
-      {/* ========================================== */}
+      {/* GRAFIK LINE PS/RE % */}
       <div className="mb-4 w-full">
-        <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">
-          📈 PS/RE % per Hari
-        </h3>
+        <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">📈 PS/RE % per Hari</h3>
         <div className="h-48 w-full">
           <Line
             data={{
@@ -288,35 +279,12 @@ export default function ExecutiveSummary({
             options={{
               responsive: true,
               maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'top',
-                  labels: { boxWidth: 10, font: { size: 8 } },
-                },
-              },
+              plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 8 } } } },
               scales: {
-                y: {
-                  beginAtZero: true,
-                  max: 100,
-                  ticks: {
-                    callback: (value) => value + '%',
-                    font: { size: 8 },
-                  },
-                },
-                x: {
-                  ticks: {
-                    maxRotation: 45,
-                    font: { size: 8 },
-                    autoSkip: true,
-                    maxTicksLimit: 15,
-                  },
-                },
+                y: { beginAtZero: true, max: 100, ticks: { callback: (value) => value + '%', font: { size: 8 } } },
+                x: { ticks: { maxRotation: 45, font: { size: 8 } } },
               },
-              layout: {
-                padding: {
-                  bottom: 20,
-                },
-              },
+              layout: { padding: { bottom: 20 } },
             }}
           />
         </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { format } from 'date-fns';
 
 interface FilterAndCardsProps {
   dateFrom: string;
@@ -14,7 +13,6 @@ interface FilterAndCardsProps {
   setStatusDateTo: (value: string) => void;
   handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   processData: () => void;
-  exportToPNG: () => void;
   filteredData: any[];
   result: any;
   getDataForMetric: (type: string) => any[];
@@ -32,7 +30,6 @@ export default function FilterAndCards({
   setStatusDateTo,
   handleFileUpload,
   processData,
-  exportToPNG,
   filteredData,
   result,
   getDataForMetric,
@@ -63,7 +60,6 @@ export default function FilterAndCards({
         <div className="flex flex-wrap gap-2 mt-2">
           <input type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="block text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
           <button onClick={processData} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-1 px-4 rounded-lg">🔍 Proses Data</button>
-          <button onClick={exportToPNG} className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-4 rounded-lg">🖼️ Export PNG</button>
         </div>
         <p className="text-xs text-blue-600 font-semibold mt-1">📊 {filteredData.length} baris data ditampilkan</p>
       </div>

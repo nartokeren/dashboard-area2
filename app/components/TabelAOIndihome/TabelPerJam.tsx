@@ -13,6 +13,7 @@ interface TabelPerJamProps {
   currentHour: number;
   regionalMapping: any;
   parseDate: (value: any) => Date | null;
+  exportSection?: (elementId: string, fileName: string) => void;
 }
 
 export default function TabelPerJam({
@@ -25,6 +26,7 @@ export default function TabelPerJam({
   currentHour,
   regionalMapping,
   parseDate,
+  exportSection,
 }: TabelPerJamProps) {
   // ============================================
   // HITUNG DATA PER JAM (HARI INI)
@@ -164,10 +166,20 @@ export default function TabelPerJam({
   // RENDER
   // ============================================
   return (
-    <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mb-6" id="table-jam-container">
-      <h2 className="text-sm font-bold text-slate-800 mb-2">
-        📋 Monitoring Pergerakan Order New Sales Indihome per-Jam (Hari Ini)
-      </h2>
+    <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mb-6 relative" id="table-jam-container">
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-sm font-bold text-slate-800">
+          📋 Monitoring Pergerakan Order New Sales Indihome per-Jam (Hari Ini)
+        </h2>
+        {exportSection && (
+          <button
+            onClick={() => exportSection('tabel-perjam', 'PerJam')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        )}
+      </div>
       <table className="w-full text-[10px] border-collapse">
         <thead>
           <tr className="bg-slate-800 text-white">

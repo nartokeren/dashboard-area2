@@ -10,7 +10,7 @@ import TabelPDAIndihome from '../components/TabelPDAIndihome';
 import TabelKosong from '../components/TabelKosong';
 
 // ============================================
-// 1. MAPPING REGIONAL
+// 1. MAPPING REGIONAL & TARGET
 // ============================================
 const regionalMapping: { [key: string]: string } = {
   'SERANG': 'BANTEN',
@@ -26,9 +26,6 @@ const regionalMapping: { [key: string]: string } = {
   'TASIKMALAYA': 'JAWA BARAT',
 };
 
-// ============================================
-// 2. TARGET PER BRANCH
-// ============================================
 const targetMapping: { [key: string]: number } = {
   'SERANG': 181,
   'TANGERANG': 179,
@@ -44,7 +41,7 @@ const targetMapping: { [key: string]: number } = {
 };
 
 // ============================================
-// 3. FUNGSI UTAMA
+// 2. FUNGSI UTAMA
 // ============================================
 export default function DashboardPage() {
   const [activeMenu, setActiveMenu] = useState<string>('daily-report');
@@ -54,7 +51,9 @@ export default function DashboardPage() {
   const [dateTo, setDateTo] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // STATE DATA PER SUB-SUB-MENU
+  // ============================================
+  // 3. STATE DATA PER SUB-SUB-MENU
+  // ============================================
   const categoryKeys = [
     'indihome-ao',
     'indihome-pda',
@@ -91,8 +90,18 @@ export default function DashboardPage() {
   }, []);
 
   // ============================================
-  // 5. PARSE TANGGAL
+  // 5. PARSE TANGGAL (Excel Serial Number + String)
   // ============================================
+  const excelSerialToDate = (num: number): Date => {
+    const wholeDays = Math.floor(num);
+    const fractionalDay = num - wholeDays;
+    const totalSeconds = Math.round(fractionalDay * 86400);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return new Date(1899, 11, 30 + wholeDays, hours, minutes, seconds);
+  };
+
   const parseDate = (value: any): Date | null => {
     if (!value) return null;
     if (value instanceof Date) return value;
@@ -100,14 +109,19 @@ export default function DashboardPage() {
       const d = new Date(value);
       if (!isNaN(d.getTime())) return d;
       const num = parseFloat(value);
-      if (!isNaN(num)) return new Date(1899, 11, 30 + num);
+      if (!isNaN(num)) return excelSerialToDate(num);
     }
-    if (typeof value === 'number') return new Date(1899, 11, 30 + value);
+    if (typeof value === 'number') return excelSerialToDate(value);
     return null;
   };
 
   // ============================================
-  // 6. HANDLE MENU
+  // 6. KEY UNTUK AKTIF
+  // ============================================
+  const currentKey = activeSubSubMenu || 'indihome-ao';
+
+  // ============================================
+  // 7. HANDLE MENU
   // ============================================
   const handleMenuSelect = (menuId: string, subMenuId?: string, subSubMenuId?: string) => {
     setActiveMenu(menuId);
@@ -119,17 +133,11 @@ export default function DashboardPage() {
       else if (subMenuId === 'indibiz') setActiveSubSubMenu('indibiz-ao');
       else if (subMenuId === 'ebis') setActiveSubSubMenu('ebis-ao');
     }
-    // Tutup sidebar setelah klik menu (di mobile)
     setIsSidebarOpen(false);
   };
 
-  // ============================================
-  // 7. KEY UNTUK AKTIF
-  // ============================================
-  const currentKey = activeSubSubMenu || 'indihome-ao';
-
-  // ============================================
-  // 8. UPLOAD & PROSES DATA
+    // ============================================
+  // 8. UPLOAD FILE (FILTER BULAN INI)
   // ============================================
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -142,23 +150,56 @@ export default function DashboardPage() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
 
+        // 🔥 AMBIL 11 KOLOM
+        const rawData = json.map((row: any) => ({
+          WONUM: String(row['WONUM'] || ''),
+          STATUS: String(row['STATUS'] || ''),
+          DATECREATED: row['DATECREATED'] || null,
+          STATUSDATE: row['STATUSDATE'] || null,
+          DISTRICT_TIF: String(row['DISTRICT_TIF'] || ''),
+          TGL_MANJA: row['TGL_MANJA'] || null,
+          ERRORCODE_AKHIR: String(row['ERRORCODE_AKHIR'] || ''),
+          SUBERRORCODE_AKHIR: String(row['SUBERRORCODE_AKHIR'] || ''),
+          STO: String(row['STO'] || ''),
+          SCID: String(row['SCID'] || ''),
+        }));
+
+        // 🔥 FILTER BULAN INI PAKAI parseDate
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        const filteredData = rawData.filter((row: any) => {
+          const dateCreated = parseDate(row.DATECREATED);
+          if (!dateCreated) return false;
+          return dateCreated >= startOfMonth && dateCreated <= endOfMonth;
+        });
+
+        console.log('📊 TOTAL DATA DARI EXCEL:', json.length);
+        console.log('📊 DATA BULAN INI:', filteredData.length);
+        console.log('📊 SAMPLE DATE:', filteredData.slice(0, 3).map((row: any) => row.DATECREATED));
+
         setDataPerCategory((prev) => ({
           ...prev,
-          [currentKey]: json,
+          [currentKey]: filteredData,
         }));
         setFilteredDataPerCategory((prev) => ({
           ...prev,
-          [currentKey]: json,
+          [currentKey]: filteredData,
         }));
 
-        alert(`✅ Berhasil! ${json.length} baris data dimuat.`);
+        alert(`✅ Berhasil! ${filteredData.length} baris data dimuat (bulan ${format(now, 'MMMM yyyy')}).`);
       } catch (error) {
+        console.error('Error upload:', error);
         alert('❌ Gagal membaca file. Pastikan format Excel benar.');
       }
     };
     reader.readAsArrayBuffer(file);
   };
 
+  // ============================================
+  // 9. PROSES DATA (FILTER)
+  // ============================================
   const processData = () => {
     const currentData = dataPerCategory[currentKey] || [];
     if (currentData.length === 0) {
@@ -186,6 +227,9 @@ export default function DashboardPage() {
     alert(`✅ Filter berhasil! ${filtered.length} baris data.`);
   };
 
+  // ============================================
+  // 10. EXPORT PNG
+  // ============================================
   const exportToPNG = async () => {
     const currentFiltered = filteredDataPerCategory[currentKey] || [];
     if (currentFiltered.length === 0) {
@@ -223,6 +267,9 @@ export default function DashboardPage() {
     }
   };
 
+  // ============================================
+  // 11. PROPS YANG DIKIRIM KE KOMPONEN
+  // ============================================
   const commonProps = {
     data: dataPerCategory[currentKey] || [],
     filteredData: filteredDataPerCategory[currentKey] || [],
@@ -242,75 +289,79 @@ export default function DashboardPage() {
   };
 
   // ============================================
-  // 9. TAMPILAN WEBSITE (HTML)
+  // 12. TAMPILAN WEBSITE (HTML)
   // ============================================
   return (
-  <div className="flex min-h-screen bg-slate-50">
-    {/* OVERLAY */}
-    {isSidebarOpen && (
+    <div className="flex min-h-screen bg-slate-50">
+      {/* OVERLAY */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* SIDEBAR */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-        onClick={() => setIsSidebarOpen(false)}
-      />
-    )}
+        className={`fixed lg:sticky top-0 z-50 transition-transform duration-300 h-screen ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } lg:translate-x-0`}
+      >
+        <Sidebar
+          onSelectMenu={handleMenuSelect}
+          activeMenu={activeMenu}
+          activeSubMenu={activeSubMenu}
+          activeSubSubMenu={activeSubSubMenu}
+        />
+      </div>
 
-    {/* SIDEBAR - full height & sticky */}
-    <div
-      className={`fixed lg:sticky top-0 z-50 transition-transform duration-300 h-screen ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      } lg:translate-x-0`}
-    >
-      <Sidebar
-        onSelectMenu={handleMenuSelect}
-        activeMenu={activeMenu}
-        activeSubMenu={activeSubMenu}
-        activeSubSubMenu={activeSubSubMenu}
-      />
-    </div>
+      {/* KONTEN UTAMA */}
+      <div className="flex-1 p-4 md:p-8 overflow-x-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* TOMBOL HAMBURGER */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="lg:hidden fixed top-4 left-4 z-50 bg-slate-800 text-white p-2 rounded-lg shadow-lg hover:bg-slate-700 transition-colors"
+          >
+            {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+          </button>
 
-    {/* KONTEN UTAMA */}
-    <div className="flex-1 p-4 md:p-8 overflow-x-auto">
-      <div className="max-w-7xl mx-auto">
-        {/* TOMBOL HAMBURGER */}
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="lg:hidden fixed top-4 left-4 z-50 bg-slate-800 text-white p-2 rounded-lg shadow-lg hover:bg-slate-700 transition-colors"
-        >
-          {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
-        </button>
+          {/* HEADER */}
+          <div className="bg-slate-800 text-white p-4 md:p-6 rounded-lg shadow-lg mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold text-center">
+              Report Monitoring Order AREA 2
+            </h1>
+            <p className="text-center text-slate-300 text-sm mt-1">
+              Periode: {format(new Date(), 'MMMM yyyy')}
+            </p>
+          </div>
 
-        {/* HEADER */}
-        <div className="bg-slate-800 text-white p-4 md:p-6 rounded-lg shadow-lg mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-center">
-            Report Monitoring Order AREA 2
-          </h1>
-          <p className="text-center text-slate-300 text-sm mt-1">
-            Periode: {format(new Date(), 'MMMM yyyy')}
-          </p>
+          {/* LANDING PAGE (Executive Review) */}
+          {activeMenu === 'executive-review' && (
+            <TabelKosong title="Executive Review" />
+          )}
+
+          {/* DAILY REPORT - INDIHOME AO */}
+          {activeSubSubMenu === 'indihome-ao' && (
+            <TabelAOIndihome {...commonProps} />
+          )}
+
+          {/* DAILY REPORT - INDIHOME PDA */}
+          {activeSubSubMenu === 'indihome-pda' && (
+            <TabelPDAIndihome {...commonProps} />
+          )}
+
+          {/* DAILY REPORT - INDIBIZ (Coming Soon) */}
+          {activeSubSubMenu?.startsWith('indibiz') && (
+            <TabelKosong title="INDIBIZ" />
+          )}
+
+          {/* DAILY REPORT - EBIS (Coming Soon) */}
+          {activeSubSubMenu?.startsWith('ebis') && (
+            <TabelKosong title="EBIS" />
+          )}
         </div>
-
-        {/* KONTEN SESUAI MENU */}
-        {activeMenu === 'executive-review' && (
-          <TabelKosong title="Executive Review" />
-        )}
-
-        {activeMenu === 'daily-report' && activeSubSubMenu === 'indihome-ao' && (
-          <TabelAOIndihome {...commonProps} />
-        )}
-
-        {activeMenu === 'daily-report' && activeSubSubMenu === 'indihome-pda' && (
-          <TabelPDAIndihome {...commonProps} />
-        )}
-
-        {activeMenu === 'daily-report' && activeSubSubMenu?.startsWith('indibiz') && (
-          <TabelKosong title="INDIBIZ" />
-        )}
-
-        {activeMenu === 'daily-report' && activeSubSubMenu?.startsWith('ebis') && (
-          <TabelKosong title="EBIS" />
-        )}
       </div>
     </div>
-  </div>
-);
+  );
 }

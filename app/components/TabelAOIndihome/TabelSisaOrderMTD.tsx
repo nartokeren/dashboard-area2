@@ -1,39 +1,38 @@
 'use client';
 
 import React from 'react';
-import { format, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
-interface TabelSisaOrderProps {
+interface TabelSisaOrderMTDProps {
   filteredData: any[];
-  dateTo: string;
   parseDate: (value: any) => Date | null;
   exportSection?: (elementId: string, fileName: string) => void;
 }
 
-export default function TabelSisaOrder({
+export default function TabelSisaOrderMTD({
   filteredData,
-  dateTo,
   parseDate,
   exportSection,
-}: TabelSisaOrderProps) {
+}: TabelSisaOrderMTDProps) {
   // ============================================
-  // HITUNG DATA H-1
+  // HITUNG DATA MTD (1 BULAN INI - HARI INI)
   // ============================================
-  const dateToObj = dateTo ? new Date(dateTo) : new Date();
-  const hMinus1 = new Date(dateToObj);
-  hMinus1.setDate(hMinus1.getDate() - 1);
+  const now = new Date();
+  const startOfMonthDate = startOfMonth(now);
+  const endOfMonthDate = endOfMonth(now);
 
-  const hMinus1Data = filteredData.filter((row: any) => {
+  const mtdData = filteredData.filter((row: any) => {
     const dateCreated = parseDate(row['DATECREATED']);
     if (!dateCreated) return false;
-    return isSameDay(dateCreated, hMinus1);
+    return dateCreated >= startOfMonthDate && dateCreated <= endOfMonthDate;
   });
 
   // ============================================
-  // HITUNG DATA KENDALA
+  // HITUNG DATA KENDALA (WORKFAIL & CANCLWORK)
   // ============================================
   const calculateKendalaData = (data: any[]) => {
-    const allowedStatus = ['CANCLWORK', 'STARTWORK', 'WORKFAIL'];
+    // HANYA WORKFAIL & CANCLWORK
+    const allowedStatus = ['WORKFAIL', 'CANCLWORK'];
     const filtered = data.filter((row: any) => allowedStatus.includes(row['STATUS']));
     
     const districts = Array.from(new Set(filtered.map((row: any) => row['DISTRICT_TIF']))).filter(Boolean);
@@ -46,15 +45,18 @@ export default function TabelSisaOrder({
       const errorCode = row['ERRORCODE_AKHIR'] || '';
       const subErrorCode = row['SUBERRORCODE_AKHIR'] || '';
       
-      let category = errorCode;
-      if (!category && status === 'STARTWORK') category = 'SISA PI H-1';
-      if (!category && status === 'CANCLWORK') category = 'ORDER CANCEL H-1';
-      if (!category) category = 'LAINNYA';
+      // KATEGORI KENDALA
+      let category = '';
+      if (status === 'CANCLWORK') {
+        category = 'CANCEL ORDER';
+      } else if (status === 'WORKFAIL') {
+        category = errorCode || 'LAINNYA';
+      } else {
+        category = 'LAINNYA';
+      }
       
-      let detail = subErrorCode;
-      if (!detail && status === 'STARTWORK') detail = 'STARTWORK';
-      if (!detail && status === 'CANCLWORK') detail = 'CANCELWORK';
-      if (!detail) detail = 'KOSONG';
+      // DETAIL KENDALA
+      let detail = subErrorCode || 'KOSONG';
       
       if (!kendalaMap.has(category)) {
         kendalaMap.set(category, new Map());
@@ -78,9 +80,8 @@ export default function TabelSisaOrder({
       categoryGrandTotal.set(category, total);
     });
     
+    // Urutkan berdasarkan Grand Total terbesar
     const sortedCategories = Array.from(kendalaMap.keys()).sort((a, b) => {
-      if (a === 'ORDER CANCEL H-1') return -1;
-      if (b === 'ORDER CANCEL H-1') return 1;
       return (categoryGrandTotal.get(b) || 0) - (categoryGrandTotal.get(a) || 0);
     });
     
@@ -128,7 +129,7 @@ export default function TabelSisaOrder({
     };
   };
 
-  const kendalaData = calculateKendalaData(hMinus1Data);
+  const kendalaData = calculateKendalaData(mtdData);
   const { rows: kendalaRows, districts, grandTotalOverall, grandTotalPerDistrict } = kendalaData;
 
   if (filteredData.length === 0 || kendalaRows.length === 0) {
@@ -142,11 +143,11 @@ export default function TabelSisaOrder({
     <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mt-6 relative pb-4">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-sm font-bold text-slate-800">
-          📋 SISA ORDER TIDAK PS H-1
+          📋 SISA ORDER TIDAK PS MTD
         </h2>
         {exportSection && (
           <button
-            onClick={() => exportSection('tabel-sisaorder-h1', 'Sisa_Order_H1')}
+            onClick={() => exportSection('tabel-sisaorder-mtd', 'Sisa_Order_MTD')}
             className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
           >
             🖼️ Export PNG
@@ -154,7 +155,7 @@ export default function TabelSisaOrder({
         )}
       </div>
       <p className="text-xs text-slate-500 mb-2">
-        Data berdasarkan DATECREATED: {format(hMinus1, 'dd MMMM yyyy')}
+        Data berdasarkan DATECREATED: {format(startOfMonthDate, 'dd MMMM yyyy')} - {format(endOfMonthDate, 'dd MMMM yyyy')}
       </p>
       <table className="w-full text-[10px] border-collapse mb-2">
         <thead>
@@ -202,8 +203,7 @@ export default function TabelSisaOrder({
                   const rowColor = row.idx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
                   
                   let categoryColor = 'text-slate-600';
-                  if (row.category === 'SISA PI H-1') categoryColor = 'text-amber-600 font-bold';
-                  else if (row.category === 'ORDER CANCEL H-1') categoryColor = 'text-red-600 font-bold';
+                  if (row.category === 'CANCEL ORDER') categoryColor = 'text-red-600 font-bold';
                   else if (row.category === 'KENDALA PELANGGAN') categoryColor = 'text-violet-600';
                   else if (row.category === 'KENDALA TEKNIK') categoryColor = 'text-cyan-600';
                   
