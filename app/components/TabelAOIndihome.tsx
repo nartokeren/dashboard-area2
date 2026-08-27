@@ -146,6 +146,8 @@ export default function TabelAOIndihome({
       const dataUrl = await domtoimage.toPng(element, {
         quality: 1,
         bgcolor: '#ffffff',
+        width: element.scrollWidth,
+        height: element.scrollHeight,
         style: {
           transform: 'scale(1)',
           transformOrigin: 'top left',
@@ -233,75 +235,120 @@ export default function TabelAOIndihome({
       {/* ========================================== */}
       {/* SECTION 1: EXECUTIVE SUMMARY */}
       {/* ========================================== */}
-      <div id="executive-summary">
-        <ExecutiveSummary
-          filteredData={safeFilteredData}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          statusDateFrom={statusDateFrom}
-          statusDateTo={statusDateTo}
-          regionalMapping={regionalMapping}
-          parseDate={parseDate}
-          exportSection={exportSection}
-        />
+      <div className="relative mb-6">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => exportSection('executive-summary-content', 'Executive_Summary')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        </div>
+        <div id="executive-summary-content" className="pb-4">
+          <ExecutiveSummary
+            filteredData={safeFilteredData}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            statusDateFrom={statusDateFrom}
+            statusDateTo={statusDateTo}
+            regionalMapping={regionalMapping}
+            parseDate={parseDate}
+          />
+        </div>
       </div>
 
       {/* ========================================== */}
       {/* SECTION 2: TABEL FULFILLMENT */}
       {/* ========================================== */}
-      <div id="tabel-fulfillment">
-        <TabelFulfillment
-          filteredData={safeFilteredData}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          statusDateFrom={statusDateFrom}
-          statusDateTo={statusDateTo}
-          regionalMapping={regionalMapping}
-          targetMapping={targetMapping}
-          parseDate={parseDate}
-          exportSection={exportSection}
-        />
+      <div className="relative mb-6">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => exportSection('tabel-fulfillment-content', 'Fulfillment_Endstate')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        </div>
+        <div id="tabel-fulfillment-content" className="pb-4">
+          <TabelFulfillment
+            filteredData={safeFilteredData}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            statusDateFrom={statusDateFrom}
+            statusDateTo={statusDateTo}
+            regionalMapping={regionalMapping}
+            targetMapping={targetMapping}
+            parseDate={parseDate}
+          />
+        </div>
       </div>
 
       {/* ========================================== */}
       {/* SECTION 3: TABEL PER-JAM */}
       {/* ========================================== */}
-      <div id="tabel-perjam">
-        <TabelPerJam
-          filteredData={safeFilteredData}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          statusDateFrom={statusDateFrom}
-          statusDateTo={statusDateTo}
-          today={today}
-          currentHour={currentHour}
-          regionalMapping={regionalMapping}
-          parseDate={parseDate}
-          exportSection={exportSection}
-        />
+      <div className="relative mb-6">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => exportSection('tabel-perjam-content', 'PerJam')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        </div>
+        <div id="tabel-perjam-content" className="pb-4">
+          <TabelPerJam
+            filteredData={safeFilteredData}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            statusDateFrom={statusDateFrom}
+            statusDateTo={statusDateTo}
+            today={today}
+            currentHour={currentHour}
+            regionalMapping={regionalMapping}
+            parseDate={parseDate}
+          />
+        </div>
       </div>
 
       {/* ========================================== */}
       {/* SECTION 4: TABEL SISA ORDER MTD */}
       {/* ========================================== */}
-      <div id="tabel-sisaorder-mtd">
-        <TabelSisaOrderMTD
-          filteredData={safeFilteredData}
-          parseDate={parseDate}
-          exportSection={exportSection}
-        />
+      <div className="relative mb-6">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => exportSection('tabel-sisaorder-mtd-content', 'Sisa_Order_MTD')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        </div>
+        <div id="tabel-sisaorder-mtd-content" className="pb-4">
+          <TabelSisaOrderMTD
+            filteredData={safeFilteredData}
+            parseDate={parseDate}
+          />
+        </div>
       </div>
 
       {/* ========================================== */}
       {/* SECTION 5: TABEL SISA ORDER H-1 */}
       {/* ========================================== */}
-      <div id="tabel-sisaorder-h1">
-        <TabelSisaOrder
-          filteredData={safeFilteredData}
-          dateTo={dateTo}
-          parseDate={parseDate}
-          exportSection={exportSection}
-        />
+      <div className="relative mb-6">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => exportSection('tabel-sisaorder-h1-content', 'Sisa_Order_H1')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        </div>
+        <div id="tabel-sisaorder-h1-content" className="pb-4">
+          <TabelSisaOrder
+            filteredData={safeFilteredData}
+            dateTo={dateTo}
+            parseDate={parseDate}
+          />
+        </div>
       </div>
 
       {safeFilteredData.length === 0 && (
