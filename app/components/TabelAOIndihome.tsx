@@ -131,8 +131,8 @@ export default function TabelAOIndihome({
     }
   };
 
-  // ============================================
-  // EXPORT PER SECTION
+      // ============================================
+  // EXPORT PER SECTION (FULL CAPTURE - FIXED)
   // ============================================
   const exportSection = async (elementId: string, fileName: string) => {
     try {
@@ -143,6 +143,22 @@ export default function TabelAOIndihome({
         return;
       }
 
+      // 🔥 SIMPAN STYLE ASLI
+      const originalOverflow = element.style.overflow;
+      const originalWidth = element.style.width;
+      const originalMinWidth = element.style.minWidth;
+      const originalMaxWidth = element.style.maxWidth;
+      const originalTransform = element.style.transform;
+
+      // 🔥 UBAH STYLE SEMENTARA (FULL LEBAR & VISIBLE)
+      element.style.overflow = 'visible';
+      element.style.width = 'auto';
+      element.style.minWidth = 'max-content';
+      element.style.maxWidth = 'none';
+      element.style.transform = 'scale(1)';
+      element.style.transformOrigin = 'top left';
+
+      // 🔥 CAPTURE DENGAN UKURAN PENUH
       const dataUrl = await domtoimage.toPng(element, {
         quality: 1,
         bgcolor: '#ffffff',
@@ -152,8 +168,25 @@ export default function TabelAOIndihome({
           transform: 'scale(1)',
           transformOrigin: 'top left',
           overflow: 'visible',
+          minWidth: 'max-content',
+          width: 'auto',
+        },
+        // 🔥 FILTER UNTUK SKIP ELEMEN YANG GAK PERLU
+        filter: (node: any) => {
+          // Skip tombol export yang mungkin masih ada di dalam
+          if (node.className && node.className.includes && node.className.includes('bg-purple-600')) {
+            return false;
+          }
+          return true;
         }
       });
+
+      // 🔥 KEMBALIKAN STYLE ASLI
+      element.style.overflow = originalOverflow;
+      element.style.width = originalWidth;
+      element.style.minWidth = originalMinWidth;
+      element.style.maxWidth = originalMaxWidth;
+      element.style.transform = originalTransform;
 
       const link = document.createElement('a');
       link.download = `${fileName}_${format(new Date(), 'yyyyMMdd')}.png`;
