@@ -209,14 +209,14 @@ export default function ExecutiveSummary({
     <div className="bg-white p-4 rounded-lg shadow-md mb-6">
       <h2 className="text-base font-bold text-slate-800 mb-3">📊 Executive Summary</h2>
       
-              {/* ========================================== */}
-      {/* GRAFIK COMBO (RE + PS + PS/RE %) */}
+            {/* ========================================== */}
+      {/* GRAFIK BAR (RE & PS) */}
       {/* ========================================== */}
       <div className="mb-4 w-full">
         <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">
-          📈 Trend Harian RE, PS, & PS/RE
+          📈 RE & PS per Hari
         </h3>
-        <div className="h-72 w-full">
+        <div className="h-48 w-full">
           <Bar
             data={{
               labels: summary.dailyData.map((item: any) => format(item.date, 'dd/MM')),
@@ -225,32 +225,11 @@ export default function ExecutiveSummary({
                   label: 'RE',
                   data: summary.dailyData.map((item: any) => item.re),
                   backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                  borderColor: 'rgb(59, 130, 246)',
-                  borderWidth: 1,
-                  order: 2,
-                  yAxisID: 'y',
                 },
                 {
                   label: 'PS',
                   data: summary.dailyData.map((item: any) => item.ps),
                   backgroundColor: 'rgba(34, 197, 94, 0.6)',
-                  borderColor: 'rgb(34, 197, 94)',
-                  borderWidth: 1,
-                  order: 3,
-                  yAxisID: 'y',
-                },
-                {
-                  label: 'PS/RE %',
-                  data: summary.dailyData.map((item: any) => item.psRePercent),
-                  type: 'line',
-                  borderColor: 'rgb(239, 68, 68)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  borderWidth: 2,
-                  pointRadius: 3,
-                  tension: 0.3,
-                  fill: true,
-                  order: 1,
-                  yAxisID: 'y1',
                 },
               ],
             }}
@@ -260,33 +239,65 @@ export default function ExecutiveSummary({
               plugins: {
                 legend: {
                   position: 'top',
-                  labels: {
-                    boxWidth: 12,
-                    padding: 8,
-                    font: { size: 9 },
-                  },
+                  labels: { boxWidth: 10, font: { size: 8 } },
                 },
               },
               scales: {
                 y: {
-                  type: 'linear',
-                  display: true,
-                  position: 'left',
                   beginAtZero: true,
-                  grid: { color: 'rgba(0,0,0,0.05)' },
                   ticks: { font: { size: 8 } },
-                  // 🔥 OTOMATIS MENYESUAIKAN DENGAN DATA TERTINGGI
-                  suggestedMax: Math.max(
-                    ...summary.dailyData.map((item: any) => Math.max(item.re, item.ps))
-                  ) * 1.2,
                 },
-                y1: {
-                  type: 'linear',
-                  display: true,
-                  position: 'right',
+                x: {
+                  ticks: {
+                    maxRotation: 45,
+                    font: { size: 8 },
+                    autoSkip: true,
+                    maxTicksLimit: 15,
+                  },
+                },
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      {/* ========================================== */}
+      {/* GRAFIK LINE (PS/RE %) */}
+      {/* ========================================== */}
+      <div className="mb-4 w-full">
+        <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">
+          📈 PS/RE % per Hari
+        </h3>
+        <div className="h-48 w-full">
+          <Line
+            data={{
+              labels: summary.dailyData.map((item: any) => format(item.date, 'dd/MM')),
+              datasets: [
+                {
+                  label: 'PS/RE %',
+                  data: summary.dailyData.map((item: any) => item.psRePercent),
+                  borderColor: 'rgb(239, 68, 68)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  borderWidth: 2,
+                  pointRadius: 3,
+                  tension: 0.3,
+                  fill: true,
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: { boxWidth: 10, font: { size: 8 } },
+                },
+              },
+              scales: {
+                y: {
                   beginAtZero: true,
                   max: 100,
-                  grid: { drawOnChartArea: false },
                   ticks: {
                     callback: (value) => value + '%',
                     font: { size: 8 },
@@ -303,10 +314,7 @@ export default function ExecutiveSummary({
               },
               layout: {
                 padding: {
-                  top: 10,
-                  bottom: 30,
-                  left: 5,
-                  right: 5,
+                  bottom: 20,
                 },
               },
             }}
