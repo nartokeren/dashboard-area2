@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { startOfDay, endOfDay, isBefore, isAfter, isSameDay, isSameMonth } from 'date-fns';
 
 interface TabelFulfillmentProps {
@@ -35,9 +35,24 @@ export default function TabelFulfillment({
   const summaryTableRef = useRef<HTMLTableElement>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
 
-  // ============================================
-  // FUNGSI UNTUK CREATE SUMMARY DATA (AREA 2 atau PER REGIONAL)
-  // ============================================
+  const getKategoriManja = (row: any) => {
+    const status = row['STATUS'] || '';
+    const tglManja = parseDate(row['TGL_MANJA']);
+
+    if (status === 'STARTWORK' && tglManja) {
+      const tglManjaDate = startOfDay(tglManja);
+      const todayDate = startOfDay(new Date());
+      
+      if (isBefore(tglManjaDate, todayDate)) return 'MANJA EXP';
+      else if (isSameDay(tglManjaDate, todayDate)) return 'MANJA HI';
+      else if (isAfter(tglManjaDate, todayDate)) return 'MANJA H+';
+    } else if (status === 'STARTWORK' && !tglManja) {
+      return 'NON MANJA';
+    }
+    
+    return row['KATEGORI_MANJA'] || 'NON MANJA';
+  };
+
   const createSummaryData = (filterRegional?: string) => {
     const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
     const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
@@ -47,12 +62,11 @@ export default function TabelFulfillment({
       if (!dateCreated) return false;
       if (fromDate && isBefore(dateCreated, fromDate)) return false;
       if (toDate && isAfter(dateCreated, toDate)) return false;
-      return row['STATUS'] === 'STARTWORK'; // Only STARTWORK
+      return row['STATUS'] === 'STARTWORK';
     });
 
     const regionalMap = new Map<string, Map<string, Map<string, any>>>();
 
-    // Build hierarchical structure: REGIONAL -> BRANCH -> STO
     dateFiltered.forEach((row: any) => {
       const regional = regionalMapping[row['DISTRICT_TIF']] || 'LAINNYA';
       const branch = row['DISTRICT_TIF'] || 'UNKNOWN';
@@ -86,7 +100,6 @@ export default function TabelFulfillment({
       else if (kategori === 'NON MANJA') stoData.nonManja++;
     });
 
-    // Build summary structure
     const summary: any[] = [];
     const regionalOrder = ['BANTEN', 'EASTERN JABOTABEK', 'JAKARTA', 'JAWA BARAT'];
     const regionsToProcess = filterRegional ? [filterRegional] : regionalOrder;
@@ -148,9 +161,6 @@ export default function TabelFulfillment({
     return summary;
   };
 
-  // ============================================
-  // FUNGSI TOGGLE EXPAND ROW
-  // ============================================
   const toggleExpandRow = (key: string) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(key)) {
@@ -161,20 +171,13 @@ export default function TabelFulfillment({
     setExpandedRows(newExpanded);
   };
 
-  // ============================================
-  // FUNGSI EXPORT SUMMARY TABLE
-  // ============================================
   const exportSummaryTable = async () => {
     if (!summaryTableRef.current) return;
 
     try {
-      // Dynamic import html2canvas
       const html2canvas = (await import('html2canvas')).default;
-
-      // Create a clean, simple copy of the table without Tailwind classes
       const clonedTable = summaryTableRef.current.cloneNode(true) as HTMLTableElement;
       
-      // Remove all Tailwind classes and apply inline styles instead
       const styleSheet = document.createElement('style');
       styleSheet.textContent = `
         table { 
@@ -210,7 +213,6 @@ export default function TabelFulfillment({
         }
       `;
 
-      // Create temporary container
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'absolute';
       tempContainer.style.left = '-9999px';
@@ -219,7 +221,6 @@ export default function TabelFulfillment({
       tempContainer.style.padding = '20px';
       tempContainer.style.width = '800px';
       
-      // Remove all class attributes to avoid Tailwind
       clonedTable.querySelectorAll('*').forEach((el) => {
         el.removeAttribute('class');
       });
@@ -228,7 +229,6 @@ export default function TabelFulfillment({
       tempContainer.appendChild(clonedTable);
       document.body.appendChild(tempContainer);
 
-      // Capture canvas
       const canvas = await html2canvas(tempContainer, {
         backgroundColor: '#ffffff',
         scale: 2,
@@ -237,10 +237,8 @@ export default function TabelFulfillment({
         allowTaint: true,
       });
 
-      // Remove temporary container
       document.body.removeChild(tempContainer);
 
-      // Download image
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
       link.download = `Summary_ORDER_PI_${new Date().toISOString().split('T')[0]}.png`;
@@ -253,9 +251,6 @@ export default function TabelFulfillment({
     }
   };
 
-  // ============================================
-  // FUNGSI COPY TO CLIPBOARD
-  // ============================================
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -267,17 +262,12 @@ export default function TabelFulfillment({
     }
   };
 
-  // ============================================
-  // FUNGSI GENERATE SUMMARY REPORT
-  // ============================================
   const generateSummaryReport = (area2Data: any, regionalArray: any[], branchArray: any[]) => {
     const now = new Date();
     const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
     
-    // Header summary
     const headerSummary = `Posisi Jam ${timeStr}, PS : ${area2Data.psHI}, Acomp + Inscomp + Valstart + Valcomp : ${area2Data.totalInprogress}, dan Manja Exp + Manja HI + Non Manja + Manja H+ : ${area2Data.totalOrderPI}`;
     
-    // Regional summary
     let regionalSummary = 'REGIONAL TABLE\nNO | REGIONAL | PS HI | TGT PS 2.3K | DEV TGT\n';
     const sortedRegional = [...regionalArray]
       .filter((item: any) => item.isSubTotal)
@@ -285,57 +275,27 @@ export default function TabelFulfillment({
       .map((item: any, idx: number) => `${idx + 1} | ${item.regional} | ${item.psHI} | ${item.tgtPSHI?.toLocaleString() || '0'} | ${(item.devHI).toLocaleString()}`);
     regionalSummary += sortedRegional.join('\n');
     
-    // Branch summary
     let branchSummary = '\nBRANCH TABLE\nNO | BRANCH | PS HI | TGT PS 2.3K | DEV TGT\n';
     const sortedBranch = [...branchArray]
       .filter((item: any) => !item.isSubTotal && !item.isArea2)
       .sort((a: any, b: any) => b.psHI - a.psHI)
       .map((item: any, idx: number) => `${idx + 1} | ${item.branch} | ${item.psHI} | ${item.tgtPSHI?.toLocaleString() || '0'} | ${(item.devHI).toLocaleString()}`);
     branchSummary += sortedBranch.join('\n');
-    
-    // Add AREA 2 total at the end
     branchSummary += `\n# | AREA 2 | ${area2Data.psHI} | ${area2Data.tgtPSHI?.toLocaleString() || '0'} | ${(area2Data.devHI).toLocaleString()}`;
     
     return { headerSummary, regionalSummary, branchSummary, fullSummary: headerSummary + '\n\n' + regionalSummary + branchSummary };
   };
 
-  // ============================================
-  // FUNGSI UNTUK PREPARE MODAL SUMMARY (AREA 2 atau PER REGIONAL)
-  // ============================================
   const openModalSummary = (regionalName?: string) => {
     const summaryData = createSummaryData(regionalName);
     setModalData(summaryData);
     setModalTitle(regionalName ? `Summary ORDER PI - ${regionalName}` : 'Summary ORDER PI - AREA 2');
     setModalType('summary');
-    setShowExportButton(!!regionalName); // Show export only for regional summary (SUB TOTAL)
+    setShowExportButton(!!regionalName);
     setExpandedRows(new Set());
     setModalOpen(true);
   };
 
-  // ============================================
-  // FUNGSI HELPER KATEGORI MANJA
-  // ============================================
-  const getKategoriManja = (row: any) => {
-    const status = row['STATUS'] || '';
-    const tglManja = parseDate(row['TGL_MANJA']);
-
-    if (status === 'STARTWORK' && tglManja) {
-      const tglManjaDate = startOfDay(tglManja);
-      const todayDate = startOfDay(new Date());
-      
-      if (isBefore(tglManjaDate, todayDate)) return 'MANJA EXP';
-      else if (isSameDay(tglManjaDate, todayDate)) return 'MANJA HI';
-      else if (isAfter(tglManjaDate, todayDate)) return 'MANJA H+';
-    } else if (status === 'STARTWORK' && !tglManja) {
-      return 'NON MANJA';
-    }
-    
-    return row['KATEGORI_MANJA'] || 'NON MANJA';
-  };
-
-  // ============================================
-  // FUNGSI UNTUK PREPARE MODAL DATA (DETAIL)
-  // ============================================
   const openModalDetail = (branchName: string) => {
     const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
     const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
@@ -345,7 +305,7 @@ export default function TabelFulfillment({
       if (!dateCreated) return false;
       if (fromDate && isBefore(dateCreated, fromDate)) return false;
       if (toDate && isAfter(dateCreated, toDate)) return false;
-      return row['STATUS'] === 'STARTWORK'; // Only STARTWORK
+      return row['STATUS'] === 'STARTWORK';
     });
 
     let branchFiltered = dateFiltered.filter((row: any) => row['DISTRICT_TIF'] === branchName);
@@ -364,10 +324,8 @@ export default function TabelFulfillment({
     setModalOpen(true);
   };
 
-  // ============================================
-  // HITUNG DATA
-  // ============================================
-  const calculateBranchData = () => {
+  // ✅ PAKE useMemo BIAR GA BERAT
+  const result = useMemo(() => {
     const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
     const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
 
@@ -454,7 +412,6 @@ export default function TabelFulfillment({
       if (status === 'COMPWORK' && statusDate && isSameDay(statusDate, new Date())) bd.psHI++;
       if (dateCreated && isSameDay(dateCreated, new Date())) bd.reHI++;
 
-      // PS MTD (FILTER STATUSDATE)
       if (status === 'COMPWORK' && statusDate) {
         const sFrom = statusDateFrom ? startOfDay(new Date(statusDateFrom)) : null;
         const sTo = statusDateTo ? endOfDay(new Date(statusDateTo)) : null;
@@ -464,7 +421,6 @@ export default function TabelFulfillment({
         if (match) bd.psMTD++;
       }
 
-      // RE MTD (FILTER DATECREATED)
       if (dateCreated) {
         const dFrom = dateFrom ? startOfDay(new Date(dateFrom)) : null;
         const dTo = dateTo ? endOfDay(new Date(dateTo)) : null;
@@ -660,17 +616,12 @@ export default function TabelFulfillment({
       psRePercent,
       branchArray: finalData,
     };
-  };
-
-  const result = calculateBranchData();
+  }, [filteredData, dateFrom, dateTo, statusDateFrom, statusDateTo, regionalMapping, targetMapping, parseDate]);
 
   if (filteredData.length === 0 || result.branchArray.length === 0) {
     return null;
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mb-6 relative" id="table-container">
       <div className="flex justify-between items-center mb-2">
@@ -851,7 +802,6 @@ export default function TabelFulfillment({
         </tbody>
       </table>
 
-      {/* SUMMARY SECTION */}
       {(() => {
         const area2Row = result.branchArray.find((item: any) => item.isArea2);
         if (!area2Row) return null;
@@ -862,7 +812,6 @@ export default function TabelFulfillment({
           <div data-export-ignore="true" className="bg-slate-50 p-4 rounded-lg mt-4 border border-slate-200">
             <h3 className="text-sm font-bold text-slate-800 mb-3">📋 Report Summary</h3>
             
-            {/* Header Summary */}
             <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
               <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.headerSummary}</p>
               <button
@@ -873,7 +822,6 @@ export default function TabelFulfillment({
               </button>
             </div>
 
-            {/* Regional Summary */}
             <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
               <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.regionalSummary}</p>
               <button
@@ -884,7 +832,6 @@ export default function TabelFulfillment({
               </button>
             </div>
 
-            {/* Branch Summary */}
             <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
               <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.branchSummary}</p>
               <button
@@ -895,7 +842,6 @@ export default function TabelFulfillment({
               </button>
             </div>
 
-            {/* Full Summary */}
             <div className="p-3 bg-white border border-slate-300 rounded">
               <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.fullSummary}</p>
               <button
@@ -913,7 +859,6 @@ export default function TabelFulfillment({
         );
       })()}
 
-      {/* MODAL POPUP */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-y-auto animate-slideUp">
@@ -928,7 +873,6 @@ export default function TabelFulfillment({
             </div>
 
             <div className="p-4 overflow-x-auto">
-              {/* MODAL DETAIL - Detail WONUM */}
               {modalType === 'detail' && (
                 <table className="w-full text-xs border-collapse">
                   <thead>
@@ -960,7 +904,6 @@ export default function TabelFulfillment({
                 </table>
               )}
 
-              {/* MODAL SUMMARY - Summary dengan expand/collapse */}
               {modalType === 'summary' && (
                 <table ref={summaryTableRef} className="w-full text-xs border-collapse">
                   <thead>
@@ -975,7 +918,6 @@ export default function TabelFulfillment({
                   <tbody>
                     {modalData.map((regional: any) => (
                       <React.Fragment key={regional.regional}>
-                        {/* REGIONAL ROW */}
                         <tr className="bg-slate-100 hover:bg-slate-200">
                           <td className="border border-slate-400 p-2 font-bold text-black">
                             <span
@@ -999,7 +941,6 @@ export default function TabelFulfillment({
                           </td>
                         </tr>
 
-                        {/* BRANCH ROWS - Show when expanded */}
                         {expandedRows.has(regional.regional) &&
                           regional.branches.map((branch: any) => (
                             <React.Fragment key={`${regional.regional}-${branch.branch}`}>
@@ -1026,7 +967,6 @@ export default function TabelFulfillment({
                                 </td>
                               </tr>
 
-                              {/* SERVICE AREA (STO) ROWS - Show when branch expanded */}
                               {expandedRows.has(`${regional.regional}-${branch.branch}`) &&
                                 branch.serviceAreas.map((sto: any) => (
                                   <tr key={`${regional.regional}-${branch.branch}-${sto.serviceArea}`} className="bg-white hover:bg-blue-50">

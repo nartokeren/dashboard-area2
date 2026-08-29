@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format, startOfMonth, startOfDay, endOfDay, isBefore, isAfter, isSameDay, isSameMonth } from 'date-fns';
 import * as XLSX from 'xlsx';
 
-// Import komponen yang sudah dipisah
+// ✅ IMPORT DARI CONSTANTS
+import { regionalMapping, targetMapping } from '@/constants';
+// ✅ IMPORT DARI UTILS
+import { parseDate } from '@/utils/date';
+
 import FilterAndCards from './TabelAOIndihome/FilterAndCards';
 import ExecutiveSummary from './TabelAOIndihome/ExecutiveSummary';
 import TabelFulfillment from './TabelAOIndihome/TabelFulfillment';
@@ -13,43 +17,6 @@ import TabelPerJam from './TabelAOIndihome/TabelPerJam';
 import TabelSisaOrderMTD from './TabelAOIndihome/TabelSisaOrderMTD';
 import TabelSisaOrder from './TabelAOIndihome/TabelSisaOrder';
 
-// ============================================
-// MAPPING REGIONAL
-// ============================================
-const regionalMapping: { [key: string]: string } = {
-  'SERANG': 'BANTEN',
-  'TANGERANG': 'BANTEN',
-  'BEKASI': 'EASTERN JABOTABEK',
-  'BOGOR': 'EASTERN JABOTABEK',
-  'KARAWANG': 'EASTERN JABOTABEK',
-  'NORTHERN JAKARTA': 'JAKARTA',
-  'SOUTHERN JAKARTA': 'JAKARTA',
-  'BANDUNG': 'JAWA BARAT',
-  'CIREBON': 'JAWA BARAT',
-  'SOREANG': 'JAWA BARAT',
-  'TASIKMALAYA': 'JAWA BARAT',
-};
-
-// ============================================
-// TARGET PER BRANCH
-// ============================================
-const targetMapping: { [key: string]: number } = {
-  'SERANG': 181,
-  'TANGERANG': 179,
-  'BEKASI': 197,
-  'BOGOR': 201,
-  'KARAWANG': 185,
-  'NORTHERN JAKARTA': 239,
-  'SOUTHERN JAKARTA': 365,
-  'BANDUNG': 401,
-  'CIREBON': 89,
-  'SOREANG': 161,
-  'TASIKMALAYA': 116,
-};
-
-// ============================================
-// KOMPONEN UTAMA
-// ============================================
 export default function TabelAOIndihome({
   data,
   filteredData,
@@ -78,29 +45,6 @@ export default function TabelAOIndihome({
     setStatusDateFrom(format(firstDay, 'yyyy-MM-dd'));
     setStatusDateTo(format(now, 'yyyy-MM-dd'));
   }, []);
-
-  const excelSerialToDate = (num: number): Date => {
-    const wholeDays = Math.floor(num);
-    const fractionalDay = num - wholeDays;
-    const totalSeconds = Math.round(fractionalDay * 86400);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return new Date(1899, 11, 30 + wholeDays, hours, minutes, seconds);
-  };
-
-  const parseDate = (value: any): Date | null => {
-    if (!value) return null;
-    if (value instanceof Date) return value;
-    if (typeof value === 'string') {
-      const d = new Date(value);
-      if (!isNaN(d.getTime())) return d;
-      const num = parseFloat(value);
-      if (!isNaN(num)) return excelSerialToDate(num);
-    }
-    if (typeof value === 'number') return excelSerialToDate(value);
-    return null;
-  };
 
   const downloadData = (data: any[], label: string) => {
     if (data.length === 0) {
@@ -132,9 +76,6 @@ export default function TabelAOIndihome({
     }
   };
 
-      // ============================================
-  // EXPORT PER SECTION (FULL CAPTURE - FIXED)
-  // ============================================
   const exportSection = async (elementId: string, fileName: string) => {
     try {
       const domtoimage = (await import('dom-to-image')).default;
@@ -159,14 +100,12 @@ export default function TabelAOIndihome({
         node.style.visibility = 'hidden';
       });
 
-      // 🔥 SIMPAN STYLE ASLI
       const originalOverflow = element.style.overflow;
       const originalWidth = element.style.width;
       const originalMinWidth = element.style.minWidth;
       const originalMaxWidth = element.style.maxWidth;
       const originalTransform = element.style.transform;
 
-      // 🔥 UBAH STYLE SEMENTARA (FULL LEBAR & VISIBLE)
       element.style.overflow = 'visible';
       element.style.width = 'auto';
       element.style.minWidth = 'max-content';
@@ -174,7 +113,6 @@ export default function TabelAOIndihome({
       element.style.transform = 'scale(1)';
       element.style.transformOrigin = 'top left';
 
-      // 🔥 CAPTURE DENGAN UKURAN PENUH
       const dataUrl = await domtoimage.toPng(element, {
         quality: 1,
         bgcolor: '#ffffff',
@@ -195,7 +133,6 @@ export default function TabelAOIndihome({
         }
       });
 
-      // 🔥 KEMBALIKAN STYLE ASLI
       element.style.overflow = originalOverflow;
       element.style.width = originalWidth;
       element.style.minWidth = originalMinWidth;
@@ -217,9 +154,6 @@ export default function TabelAOIndihome({
     }
   };
 
-  // ============================================
-  // HITUNG RESULT UNTUK KARTU
-  // ============================================
   const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
   const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
 
@@ -242,7 +176,8 @@ export default function TabelAOIndihome({
     return true;
   });
 
-  const result = {
+  // ✅ PAKE useMemo BIAR GA BERAT
+  const result = useMemo(() => ({
     totalRE: dateFiltered.length,
     totalPS: statusDateFiltered.filter((row: any) => row['STATUS'] === 'COMPWORK').length,
     totalCANCEL: dateFiltered.filter((row: any) => row['STATUS'] === 'CANCLWORK').length,
@@ -259,14 +194,10 @@ export default function TabelAOIndihome({
       row['ERRORCODE_AKHIR'] === 'KENDALA LAINNYA'
     ).length,
     psRePercent: dateFiltered.length > 0 ? (statusDateFiltered.filter((row: any) => row['STATUS'] === 'COMPWORK').length / dateFiltered.length) * 100 : 0,
-  };
+  }), [dateFiltered, statusDateFiltered]);
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <div>
-      {/* FILTER + KARTU */}
       <FilterAndCards
         dateFrom={dateFrom}
         setDateFrom={setDateFrom}
@@ -284,9 +215,6 @@ export default function TabelAOIndihome({
         downloadData={downloadData}
       />
 
-      {/* ========================================== */}
-      {/* SECTION 1: EXECUTIVE SUMMARY */}
-      {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">
           <button
@@ -309,9 +237,6 @@ export default function TabelAOIndihome({
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SECTION 2: TABEL FULFILLMENT */}
-      {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">
           <button
@@ -335,9 +260,6 @@ export default function TabelAOIndihome({
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SECTION 3: TABEL PS/RE H-1 */}
-      {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">
           <button
@@ -359,9 +281,6 @@ export default function TabelAOIndihome({
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SECTION 4: TABEL PER-JAM */}
-      {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">
           <button
@@ -386,9 +305,6 @@ export default function TabelAOIndihome({
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SECTION 5: TABEL SISA ORDER MTD */}
-      {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">
           <button
@@ -406,9 +322,6 @@ export default function TabelAOIndihome({
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* SECTION 6: TABEL SISA ORDER H-1 */}
-      {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">
           <button

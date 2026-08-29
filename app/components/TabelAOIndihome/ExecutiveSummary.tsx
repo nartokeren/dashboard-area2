@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { format, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns';
 import { Bar, Line } from 'react-chartjs-2';
 import {
@@ -47,10 +47,9 @@ export default function ExecutiveSummary({
   parseDate,
   exportSection,
 }: ExecutiveSummaryProps) {
-  // ============================================
-  // HITUNG DATA EXECUTIVE SUMMARY
-  // ============================================
-  const calculateExecutiveSummary = () => {
+
+  // ✅ PAKE useMemo BIAR GA BERAT
+  const summary = useMemo(() => {
     const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
     const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
 
@@ -78,7 +77,6 @@ export default function ExecutiveSummary({
       ? Math.ceil((new Date(dateTo).getTime() - new Date(dateFrom).getTime()) / (1000 * 60 * 60 * 24)) + 1
       : 1;
 
-    // Regional
     const regionalOrder = ['EASTERN JABOTABEK', 'JAWA BARAT', 'JAKARTA', 'BANTEN'];
     const regionalData: any[] = [];
 
@@ -105,7 +103,6 @@ export default function ExecutiveSummary({
     const grandTotalAvgRE = Math.round(grandTotalRE / daysInFilter);
     const grandTotalAvgPS = Math.round(grandTotalPS / daysInFilter);
 
-    // Daily Data
     const dailyMap = new Map<string, { re: number, ps: number }>();
 
     reSummaryData.forEach((row: any) => {
@@ -140,7 +137,6 @@ export default function ExecutiveSummary({
       };
     });
 
-    // Branch
     const branchSummaryMap = new Map<string, { reCount: number, psCount: number }>();
 
     reSummaryData.forEach((row: any) => {
@@ -196,15 +192,10 @@ export default function ExecutiveSummary({
       branchGrandTotalAvgPS,
       daysInFilter,
     };
-  };
-
-  const summary = calculateExecutiveSummary();
+  }, [filteredData, dateFrom, dateTo, statusDateFrom, statusDateTo, regionalMapping, parseDate]);
 
   const [copyFeedback, setCopyFeedback] = useState('');
 
-  // ============================================
-  // FUNGSI COPY TO CLIPBOARD
-  // ============================================
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -216,9 +207,6 @@ export default function ExecutiveSummary({
     }
   };
 
-  // ============================================
-  // FUNGSI GENERATE PS/RE REPORT
-  // ============================================
   const generatePsReReport = () => {
     const currentDate = new Date();
     const currentMonth = format(currentDate, 'MMMM yyyy').charAt(0).toUpperCase() + format(currentDate, 'MMMM yyyy').slice(1);
@@ -227,7 +215,6 @@ export default function ExecutiveSummary({
     report += '===================\n';
     report += 'NO | BRANCH | PS/RE\n';
     
-    // Branch data sorted by psRePercent descending
     const sortedBranches = [...summary.branchData].sort((a, b) => b.psRePercent - a.psRePercent);
     
     sortedBranches.forEach((item: any, idx: number) => {
@@ -235,7 +222,6 @@ export default function ExecutiveSummary({
       report += `${idx + 1} | ${item.branch} | ${item.psRePercent.toFixed(2)}% | ${status}\n`;
     });
     
-    // AREA 2 total
     const area2Status = summary.branchGrandTotalPsRe >= 85 ? '✅' : '❌';
     report += `# | AREA 2 | ${summary.branchGrandTotalPsRe.toFixed(2)}% | ${area2Status}`;
     
@@ -246,12 +232,8 @@ export default function ExecutiveSummary({
     return null;
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <div className="bg-white p-4 rounded-lg shadow-md mb-6 relative">
-      {/* Tombol Export PNG */}
       <div className="absolute top-2 right-2">
         {exportSection && (
           <button
@@ -265,7 +247,6 @@ export default function ExecutiveSummary({
       
       <h2 className="text-base font-bold text-slate-800 mb-3">📊 Executive Summary</h2>
       
-      {/* GRAFIK BAR RE & PS */}
       <div className="mb-4 w-full">
         <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">📈 RE & PS per Hari</h3>
         <div className="h-48 w-full">
@@ -298,7 +279,6 @@ export default function ExecutiveSummary({
         </div>
       </div>
 
-      {/* GRAFIK LINE PS/RE % */}
       <div className="mb-4 w-full">
         <h3 className="text-xs font-semibold text-slate-600 mb-2 text-center">📈 PS/RE % per Hari</h3>
         <div className="h-48 w-full">
@@ -332,7 +312,6 @@ export default function ExecutiveSummary({
         </div>
       </div>
 
-      {/* TABEL REGIONAL */}
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-slate-700 mb-2">📋 Regional TA</h3>
         <div className="overflow-x-auto">
@@ -379,7 +358,6 @@ export default function ExecutiveSummary({
         </div>
       </div>
 
-      {/* TABEL BRANCH */}
       <div>
         <h3 className="text-sm font-semibold text-slate-700 mb-2">📋 Branch TA</h3>
         <div className="overflow-x-auto">
@@ -417,7 +395,6 @@ export default function ExecutiveSummary({
                       {item.psRePercent.toFixed(2)}%
                     </td>
                     
-                    {/* AVG RE - progress bar */}
                     <td className="border border-slate-300 p-1">
                       <div className="flex items-center gap-1 min-w-[80px]">
                         <div className="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden">
@@ -432,7 +409,6 @@ export default function ExecutiveSummary({
                       </div>
                     </td>
                     
-                    {/* AVG PS - progress bar */}
                     <td className="border border-slate-300 p-1">
                       <div className="flex items-center gap-1 min-w-[80px]">
                         <div className="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden">
@@ -466,7 +442,6 @@ export default function ExecutiveSummary({
         </div>
       </div>
 
-      {/* SUMMARY SECTION - PS/RE REPORT */}
       <div data-export-ignore="true" className="bg-slate-50 p-4 rounded-lg mt-4 border border-slate-200">
         <h3 className="text-sm font-bold text-slate-800 mb-3">📋 Report Summary</h3>
         

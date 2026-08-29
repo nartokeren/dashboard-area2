@@ -1,48 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { format, startOfMonth, isBefore, isAfter } from 'date-fns';
 import { FaBars, FaTimes } from 'react-icons/fa';
+
+// ✅ IMPORT DARI CONSTANTS
+import { regionalMapping, targetMapping } from '@/constants';
+// ✅ IMPORT DARI UTILS
+import { parseDate } from '@/utils/date';
+
 import Sidebar from '../components/Sidebar';
 import TabelAOIndihome from '../components/TabelAOIndihome';
 import TabelPDAIndihome from '../components/TabelPDAIndihome';
 import TabelKosong from '../components/TabelKosong';
 
-// ============================================
-// 1. MAPPING REGIONAL & TARGET
-// ============================================
-const regionalMapping: { [key: string]: string } = {
-  'SERANG': 'BANTEN',
-  'TANGERANG': 'BANTEN',
-  'BEKASI': 'EASTERN JABOTABEK',
-  'BOGOR': 'EASTERN JABOTABEK',
-  'KARAWANG': 'EASTERN JABOTABEK',
-  'NORTHERN JAKARTA': 'JAKARTA',
-  'SOUTHERN JAKARTA': 'JAKARTA',
-  'BANDUNG': 'JAWA BARAT',
-  'CIREBON': 'JAWA BARAT',
-  'SOREANG': 'JAWA BARAT',
-  'TASIKMALAYA': 'JAWA BARAT',
-};
-
-const targetMapping: { [key: string]: number } = {
-  'SERANG': 181,
-  'TANGERANG': 179,
-  'BEKASI': 197,
-  'BOGOR': 201,
-  'KARAWANG': 185,
-  'NORTHERN JAKARTA': 239,
-  'SOUTHERN JAKARTA': 365,
-  'BANDUNG': 401,
-  'CIREBON': 89,
-  'SOREANG': 161,
-  'TASIKMALAYA': 116,
-};
-
-// ============================================
-// 2. FUNGSI UTAMA
-// ============================================
 export default function DashboardPage() {
   const [activeMenu, setActiveMenu] = useState<string>('daily-report');
   const [activeSubMenu, setActiveSubMenu] = useState<string>('indihome');
@@ -51,9 +23,6 @@ export default function DashboardPage() {
   const [dateTo, setDateTo] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // ============================================
-  // 3. STATE DATA PER SUB-SUB-MENU
-  // ============================================
   const categoryKeys = [
     'indihome-ao',
     'indihome-pda',
@@ -79,48 +48,13 @@ export default function DashboardPage() {
     return obj;
   });
 
-  // ============================================
-  // 4. DEFAULT FILTER (TIDAK ADA BATAS BULAN)
-  // ============================================
   useEffect(() => {
     setDateFrom('');
     setDateTo('');
   }, []);
 
-  // ============================================
-  // 5. PARSE TANGGAL (Excel Serial Number + String)
-  // ============================================
-  const excelSerialToDate = (num: number): Date => {
-    const wholeDays = Math.floor(num);
-    const fractionalDay = num - wholeDays;
-    const totalSeconds = Math.round(fractionalDay * 86400);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return new Date(1899, 11, 30 + wholeDays, hours, minutes, seconds);
-  };
-
-  const parseDate = (value: any): Date | null => {
-    if (!value) return null;
-    if (value instanceof Date) return value;
-    if (typeof value === 'string') {
-      const d = new Date(value);
-      if (!isNaN(d.getTime())) return d;
-      const num = parseFloat(value);
-      if (!isNaN(num)) return excelSerialToDate(num);
-    }
-    if (typeof value === 'number') return excelSerialToDate(value);
-    return null;
-  };
-
-  // ============================================
-  // 6. KEY UNTUK AKTIF
-  // ============================================
   const currentKey = activeSubSubMenu || 'indihome-ao';
 
-  // ============================================
-  // 7. HANDLE MENU
-  // ============================================
   const handleMenuSelect = (menuId: string, subMenuId?: string, subSubMenuId?: string) => {
     setActiveMenu(menuId);
     if (subMenuId) setActiveSubMenu(subMenuId);
@@ -134,62 +68,76 @@ export default function DashboardPage() {
     setIsSidebarOpen(false);
   };
 
-    // ============================================
-  // 8. UPLOAD FILE (FILTER BULAN INI)
-  // ============================================
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const file = event.target.files?.[0];
+  if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const workbook = XLSX.read(e.target?.result, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      // STEP 1: Baca file mentah dari user
+      const data = new Uint8Array(e.target?.result as ArrayBuffer);
+      
+      // STEP 2: Baca workbook pake library xlsx (SUPPORT SEMUA FORMAT!)
+      const workbook = XLSX.read(data, { type: 'array' });
 
-        // 🔥 AMBIL 11 KOLOM
-        const rawData = json.map((row: any) => ({
-          WONUM: String(row['WONUM'] || ''),
-          STATUS: String(row['STATUS'] || ''),
-          DATECREATED: row['DATECREATED'] || null,
-          STATUSDATE: row['STATUSDATE'] || null,
-          DISTRICT_TIF: String(row['DISTRICT_TIF'] || ''),
-          TGL_MANJA: row['TGL_MANJA'] || null,
-          ERRORCODE_AKHIR: String(row['ERRORCODE_AKHIR'] || ''),
-          SUBERRORCODE_AKHIR: String(row['SUBERRORCODE_AKHIR'] || ''),
-          STO: String(row['STO'] || ''),
-          SCID: String(row['SCID'] || ''),
-        }));
-
-        // 🔥 SEMUA DATA YANG TERUPLOAD HARUS TAMPIL TANPA BATAS BULAN
-        const filteredData = rawData;
-
-        console.log('📊 TOTAL DATA DARI EXCEL:', json.length);
-        console.log('📊 DATA TERUPLOAD:', filteredData.length);
-        console.log('📊 SAMPLE DATE:', filteredData.slice(0, 3).map((row: any) => row.DATECREATED));
-
-        setDataPerCategory((prev) => ({
-          ...prev,
-          [currentKey]: filteredData,
-        }));
-        setFilteredDataPerCategory((prev) => ({
-          ...prev,
-          [currentKey]: filteredData,
-        }));
-
-        alert(`✅ Berhasil! ${filteredData.length} baris data dimuat dari file Excel.`);
-      } catch (error) {
-        console.error('Error upload:', error);
-        alert('❌ Gagal membaca file. Pastikan format Excel benar.');
+      // STEP 3: 🔥 KALAU FILENYA .xls, CONVERT KE .xlsx DULU!
+      let fileToProcess = workbook;
+      if (file.name.endsWith('.xls') && !file.name.endsWith('.xlsx')) {
+        console.log('🔄 File .xls terdeteksi, mengconvert ke .xlsx...');
+        
+        // Tulis ulang workbook jadi format .xlsx di memory (tanpa save ke disk!)
+        const xlsxData = XLSX.write(workbook, { 
+          bookType: 'xlsx', 
+          type: 'array' 
+        });
+        
+        // Baca ulang hasil convert .xlsx-nya
+        const convertedWorkbook = XLSX.read(xlsxData, { type: 'array' });
+        fileToProcess = convertedWorkbook;
+        
+        console.log('✅ Berhasil convert .xls → .xlsx di memory!');
       }
-    };
-    reader.readAsArrayBuffer(file);
-  };
 
-  // ============================================
-  // 9. PROSES DATA (FILTER)
-  // ============================================
+      // STEP 4: Ambil sheet pertama
+      const sheet = fileToProcess.Sheets[fileToProcess.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet);
+
+      // STEP 5: Mapping data
+      const rawData = json.map((row: any) => ({
+        WONUM: String(row['WONUM'] || ''),
+        STATUS: String(row['STATUS'] || ''),
+        DATECREATED: row['DATECREATED'] || null,
+        STATUSDATE: row['STATUSDATE'] || null,
+        DISTRICT_TIF: String(row['DISTRICT_TIF'] || ''),
+        TGL_MANJA: row['TGL_MANJA'] || null,
+        ERRORCODE_AKHIR: String(row['ERRORCODE_AKHIR'] || ''),
+        SUBERRORCODE_AKHIR: String(row['SUBERRORCODE_AKHIR'] || ''),
+        STO: String(row['STO'] || ''),
+        SCID: String(row['SCID'] || ''),
+      }));
+
+      console.log('📊 TOTAL DATA DARI EXCEL:', json.length);
+      console.log('📊 DATA TERUPLOAD:', rawData.length);
+
+      setDataPerCategory((prev) => ({
+        ...prev,
+        [currentKey]: rawData,
+      }));
+      setFilteredDataPerCategory((prev) => ({
+        ...prev,
+        [currentKey]: rawData,
+      }));
+
+      alert(`✅ Berhasil! ${rawData.length} baris data dimuat (${file.name})`);
+    } catch (error) {
+      console.error('Error upload:', error);
+      alert('❌ Gagal membaca file. Pastikan format file benar.');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+};
+
   const processData = () => {
     const currentData = dataPerCategory[currentKey] || [];
     if (currentData.length === 0) {
@@ -217,9 +165,6 @@ export default function DashboardPage() {
     alert(`✅ Filter berhasil! ${filtered.length} baris data.`);
   };
 
-  // ============================================
-  // 10. EXPORT PNG
-  // ============================================
   const exportToPNG = async () => {
     const currentFiltered = filteredDataPerCategory[currentKey] || [];
     if (currentFiltered.length === 0) {
@@ -257,10 +202,8 @@ export default function DashboardPage() {
     }
   };
 
-  // ============================================
-  // 11. PROPS YANG DIKIRIM KE KOMPONEN
-  // ============================================
-  const commonProps = {
+  // ✅ PAKE useMemo BIAR GA BERAT
+  const commonProps = useMemo(() => ({
     data: dataPerCategory[currentKey] || [],
     filteredData: filteredDataPerCategory[currentKey] || [],
     setData: (newData: any[]) => {
@@ -276,14 +219,10 @@ export default function DashboardPage() {
     handleFileUpload,
     processData,
     exportToPNG,
-  };
+  }), [currentKey, dataPerCategory, filteredDataPerCategory, dateFrom, dateTo]);
 
-  // ============================================
-  // 12. TAMPILAN WEBSITE (HTML)
-  // ============================================
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* OVERLAY */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -291,7 +230,6 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* SIDEBAR */}
       <div
         className={`fixed lg:sticky top-0 z-50 transition-transform duration-300 h-screen ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -305,10 +243,8 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* KONTEN UTAMA */}
       <div className="flex-1 p-4 md:p-8 overflow-x-auto">
         <div className="max-w-7xl mx-auto">
-          {/* TOMBOL HAMBURGER */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="lg:hidden fixed top-4 left-4 z-50 bg-slate-800 text-white p-2 rounded-lg shadow-lg hover:bg-slate-700 transition-colors"
@@ -316,7 +252,6 @@ export default function DashboardPage() {
             {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
           </button>
 
-          {/* HEADER */}
           <div className="bg-slate-800 text-white p-4 md:p-6 rounded-lg shadow-lg mb-6">
             <h1 className="text-2xl md:text-3xl font-bold text-center">
               Report Monitoring Order AREA 2
@@ -326,27 +261,22 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* LANDING PAGE (Executive Review) */}
           {activeMenu === 'executive-review' && (
             <TabelKosong title="Executive Review" />
           )}
 
-          {/* DAILY REPORT - INDIHOME AO */}
           {activeSubSubMenu === 'indihome-ao' && (
             <TabelAOIndihome {...commonProps} />
           )}
 
-          {/* DAILY REPORT - INDIHOME PDA */}
           {activeSubSubMenu === 'indihome-pda' && (
             <TabelPDAIndihome {...commonProps} />
           )}
 
-          {/* DAILY REPORT - INDIBIZ (Coming Soon) */}
           {activeSubSubMenu?.startsWith('indibiz') && (
             <TabelKosong title="INDIBIZ" />
           )}
 
-          {/* DAILY REPORT - EBIS (Coming Soon) */}
           {activeSubSubMenu?.startsWith('ebis') && (
             <TabelKosong title="EBIS" />
           )}
