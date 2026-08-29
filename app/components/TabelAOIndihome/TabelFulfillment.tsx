@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { startOfDay, endOfDay, isBefore, isAfter, isSameDay, isSameMonth } from 'date-fns';
 
 interface TabelFulfillmentProps {
@@ -26,6 +26,344 @@ export default function TabelFulfillment({
   parseDate,
   exportSection,
 }: TabelFulfillmentProps) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalData, setModalData] = useState<any[]>([]);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalType, setModalType] = useState<'detail' | 'summary'>('detail');
+  const [showExportButton, setShowExportButton] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const summaryTableRef = useRef<HTMLTableElement>(null);
+  const [copyFeedback, setCopyFeedback] = useState('');
+
+  // ============================================
+  // FUNGSI UNTUK CREATE SUMMARY DATA (AREA 2 atau PER REGIONAL)
+  // ============================================
+  const createSummaryData = (filterRegional?: string) => {
+    const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
+    const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
+
+    const dateFiltered = filteredData.filter((row: any) => {
+      const dateCreated = parseDate(row['DATECREATED']);
+      if (!dateCreated) return false;
+      if (fromDate && isBefore(dateCreated, fromDate)) return false;
+      if (toDate && isAfter(dateCreated, toDate)) return false;
+      return row['STATUS'] === 'STARTWORK'; // Only STARTWORK
+    });
+
+    const regionalMap = new Map<string, Map<string, Map<string, any>>>();
+
+    // Build hierarchical structure: REGIONAL -> BRANCH -> STO
+    dateFiltered.forEach((row: any) => {
+      const regional = regionalMapping[row['DISTRICT_TIF']] || 'LAINNYA';
+      const branch = row['DISTRICT_TIF'] || 'UNKNOWN';
+      const serviceArea = row['STO'] || 'UNKNOWN';
+      const kategori = getKategoriManja(row);
+
+      if (!regionalMap.has(regional)) {
+        regionalMap.set(regional, new Map());
+      }
+      const branchMap = regionalMap.get(regional)!;
+
+      if (!branchMap.has(branch)) {
+        branchMap.set(branch, new Map());
+      }
+      const stoMap = branchMap.get(branch)!;
+
+      if (!stoMap.has(serviceArea)) {
+        stoMap.set(serviceArea, {
+          serviceArea,
+          manjaExp: 0,
+          manjaHI: 0,
+          manjaHPlus: 0,
+          nonManja: 0,
+        });
+      }
+      const stoData = stoMap.get(serviceArea)!;
+
+      if (kategori === 'MANJA EXP') stoData.manjaExp++;
+      else if (kategori === 'MANJA HI') stoData.manjaHI++;
+      else if (kategori === 'MANJA H+') stoData.manjaHPlus++;
+      else if (kategori === 'NON MANJA') stoData.nonManja++;
+    });
+
+    // Build summary structure
+    const summary: any[] = [];
+    const regionalOrder = ['BANTEN', 'EASTERN JABOTABEK', 'JAKARTA', 'JAWA BARAT'];
+    const regionsToProcess = filterRegional ? [filterRegional] : regionalOrder;
+
+    regionsToProcess.forEach((regional) => {
+      const branchMap = regionalMap.get(regional);
+      if (!branchMap) return;
+
+      let regionalManjaExp = 0,
+        regionalManjaHI = 0,
+        regionalManjaHPlus = 0,
+        regionalNonManja = 0;
+
+      const branches: any[] = [];
+
+      branchMap.forEach((stoMap, branch) => {
+        let branchManjaExp = 0,
+          branchManjaHI = 0,
+          branchManjaHPlus = 0,
+          branchNonManja = 0;
+        const serviceAreas: any[] = [];
+
+        stoMap.forEach((stoData) => {
+          serviceAreas.push(stoData);
+          branchManjaExp += stoData.manjaExp;
+          branchManjaHI += stoData.manjaHI;
+          branchManjaHPlus += stoData.manjaHPlus;
+          branchNonManja += stoData.nonManja;
+        });
+
+        branches.push({
+          type: 'branch',
+          regional,
+          branch,
+          serviceAreas,
+          manjaExp: branchManjaExp,
+          manjaHI: branchManjaHI,
+          manjaHPlus: branchManjaHPlus,
+          nonManja: branchNonManja,
+        });
+
+        regionalManjaExp += branchManjaExp;
+        regionalManjaHI += branchManjaHI;
+        regionalManjaHPlus += branchManjaHPlus;
+        regionalNonManja += branchNonManja;
+      });
+
+      summary.push({
+        type: 'regional',
+        regional,
+        branches,
+        manjaExp: regionalManjaExp,
+        manjaHI: regionalManjaHI,
+        manjaHPlus: regionalManjaHPlus,
+        nonManja: regionalNonManja,
+      });
+    });
+
+    return summary;
+  };
+
+  // ============================================
+  // FUNGSI TOGGLE EXPAND ROW
+  // ============================================
+  const toggleExpandRow = (key: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(key)) {
+      newExpanded.delete(key);
+    } else {
+      newExpanded.add(key);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  // ============================================
+  // FUNGSI EXPORT SUMMARY TABLE
+  // ============================================
+  const exportSummaryTable = async () => {
+    if (!summaryTableRef.current) return;
+
+    try {
+      // Dynamic import html2canvas
+      const html2canvas = (await import('html2canvas')).default;
+
+      // Create a clean, simple copy of the table without Tailwind classes
+      const clonedTable = summaryTableRef.current.cloneNode(true) as HTMLTableElement;
+      
+      // Remove all Tailwind classes and apply inline styles instead
+      const styleSheet = document.createElement('style');
+      styleSheet.textContent = `
+        table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          font-family: Arial, sans-serif; 
+          font-size: 12px;
+        }
+        thead { 
+          background-color: #1e293b; 
+          color: #ffffff; 
+        }
+        th { 
+          border: 1px solid #334155; 
+          padding: 10px; 
+          text-align: left; 
+          font-weight: bold; 
+          font-size: 13px;
+          color: #ffffff;
+          background-color: #1e293b;
+        }
+        td { 
+          border: 1px solid #cbd5e1; 
+          padding: 10px; 
+          font-size: 12px;
+          color: #000000;
+        }
+        tbody tr:nth-child(odd) { 
+          background-color: #f1f5f9; 
+        }
+        tbody tr:nth-child(even) { 
+          background-color: #ffffff; 
+        }
+      `;
+
+      // Create temporary container
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '-9999px';
+      tempContainer.style.background = 'white';
+      tempContainer.style.padding = '20px';
+      tempContainer.style.width = '800px';
+      
+      // Remove all class attributes to avoid Tailwind
+      clonedTable.querySelectorAll('*').forEach((el) => {
+        el.removeAttribute('class');
+      });
+      
+      tempContainer.appendChild(styleSheet);
+      tempContainer.appendChild(clonedTable);
+      document.body.appendChild(tempContainer);
+
+      // Capture canvas
+      const canvas = await html2canvas(tempContainer, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+      });
+
+      // Remove temporary container
+      document.body.removeChild(tempContainer);
+
+      // Download image
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `Summary_ORDER_PI_${new Date().toISOString().split('T')[0]}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export gagal, silakan coba lagi');
+    }
+  };
+
+  // ============================================
+  // FUNGSI COPY TO CLIPBOARD
+  // ============================================
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback('✓ Copied!');
+      setTimeout(() => setCopyFeedback(''), 2000);
+    } catch (error) {
+      console.error('Copy failed:', error);
+      setCopyFeedback('✗ Copy failed');
+    }
+  };
+
+  // ============================================
+  // FUNGSI GENERATE SUMMARY REPORT
+  // ============================================
+  const generateSummaryReport = (area2Data: any, regionalArray: any[], branchArray: any[]) => {
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    
+    // Header summary
+    const headerSummary = `Posisi Jam ${timeStr}, PS : ${area2Data.psHI}, Acomp + Inscomp + Valstart + Valcomp : ${area2Data.totalInprogress}, dan Manja Exp + Manja HI + Non Manja + Manja H+ : ${area2Data.totalOrderPI}`;
+    
+    // Regional summary
+    let regionalSummary = 'REGIONAL TABLE\nNO | REGIONAL | PS HI | TGT PS 2.3K | DEV TGT\n';
+    const sortedRegional = [...regionalArray]
+      .filter((item: any) => item.isSubTotal)
+      .sort((a: any, b: any) => b.psHI - a.psHI)
+      .map((item: any, idx: number) => `${idx + 1} | ${item.regional} | ${item.psHI} | ${item.tgtPSHI?.toLocaleString() || '0'} | ${(item.devHI).toLocaleString()}`);
+    regionalSummary += sortedRegional.join('\n');
+    
+    // Branch summary
+    let branchSummary = '\nBRANCH TABLE\nNO | BRANCH | PS HI | TGT PS 2.3K | DEV TGT\n';
+    const sortedBranch = [...branchArray]
+      .filter((item: any) => !item.isSubTotal && !item.isArea2)
+      .sort((a: any, b: any) => b.psHI - a.psHI)
+      .map((item: any, idx: number) => `${idx + 1} | ${item.branch} | ${item.psHI} | ${item.tgtPSHI?.toLocaleString() || '0'} | ${(item.devHI).toLocaleString()}`);
+    branchSummary += sortedBranch.join('\n');
+    
+    // Add AREA 2 total at the end
+    branchSummary += `\n# | AREA 2 | ${area2Data.psHI} | ${area2Data.tgtPSHI?.toLocaleString() || '0'} | ${(area2Data.devHI).toLocaleString()}`;
+    
+    return { headerSummary, regionalSummary, branchSummary, fullSummary: headerSummary + '\n\n' + regionalSummary + branchSummary };
+  };
+
+  // ============================================
+  // FUNGSI UNTUK PREPARE MODAL SUMMARY (AREA 2 atau PER REGIONAL)
+  // ============================================
+  const openModalSummary = (regionalName?: string) => {
+    const summaryData = createSummaryData(regionalName);
+    setModalData(summaryData);
+    setModalTitle(regionalName ? `Summary ORDER PI - ${regionalName}` : 'Summary ORDER PI - AREA 2');
+    setModalType('summary');
+    setShowExportButton(!!regionalName); // Show export only for regional summary (SUB TOTAL)
+    setExpandedRows(new Set());
+    setModalOpen(true);
+  };
+
+  // ============================================
+  // FUNGSI HELPER KATEGORI MANJA
+  // ============================================
+  const getKategoriManja = (row: any) => {
+    const status = row['STATUS'] || '';
+    const tglManja = parseDate(row['TGL_MANJA']);
+
+    if (status === 'STARTWORK' && tglManja) {
+      const tglManjaDate = startOfDay(tglManja);
+      const todayDate = startOfDay(new Date());
+      
+      if (isBefore(tglManjaDate, todayDate)) return 'MANJA EXP';
+      else if (isSameDay(tglManjaDate, todayDate)) return 'MANJA HI';
+      else if (isAfter(tglManjaDate, todayDate)) return 'MANJA H+';
+    } else if (status === 'STARTWORK' && !tglManja) {
+      return 'NON MANJA';
+    }
+    
+    return row['KATEGORI_MANJA'] || 'NON MANJA';
+  };
+
+  // ============================================
+  // FUNGSI UNTUK PREPARE MODAL DATA (DETAIL)
+  // ============================================
+  const openModalDetail = (branchName: string) => {
+    const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
+    const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
+
+    const dateFiltered = filteredData.filter((row: any) => {
+      const dateCreated = parseDate(row['DATECREATED']);
+      if (!dateCreated) return false;
+      if (fromDate && isBefore(dateCreated, fromDate)) return false;
+      if (toDate && isAfter(dateCreated, toDate)) return false;
+      return row['STATUS'] === 'STARTWORK'; // Only STARTWORK
+    });
+
+    let branchFiltered = dateFiltered.filter((row: any) => row['DISTRICT_TIF'] === branchName);
+
+    const detailData = branchFiltered.map((row: any) => ({
+      BRANCH: row['DISTRICT_TIF'] || '-',
+      STO: row['STO'] || '-',
+      WONUM: row['WONUM'] || '-',
+      KATEGORI_MANJA: getKategoriManja(row),
+    }));
+
+    setModalData(detailData);
+    setModalTitle(`Detail ORDER PI - ${branchName}`);
+    setModalType('detail');
+    setShowExportButton(false);
+    setModalOpen(true);
+  };
+
   // ============================================
   // HITUNG DATA
   // ============================================
@@ -467,7 +805,16 @@ export default function TabelFulfillment({
                   <td className={`border border-slate-300 p-1 text-center font-mono ${isArea2 ? 'text-white' : (item.manjaHI > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold')}`}>{item.manjaHI}</td>
                   <td className={`border border-slate-300 p-1 text-center font-mono ${isArea2 ? 'text-white' : (item.manjaHPlus > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold')}`}>{item.manjaHPlus}</td>
                   <td className={`border border-slate-300 p-1 text-center font-mono ${isArea2 ? 'text-white' : (item.nonManja > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold')}`}>{item.nonManja}</td>
-                  <td className={`border border-slate-300 p-1 text-center font-bold font-mono ${isArea2 ? 'text-white' : 'text-blue-600'}`}>{item.totalOrderPI}</td>
+                  <td 
+                    onClick={() => {
+                      if (isArea2) openModalSummary();
+                      else if (isSubTotal) openModalSummary(item.regional);
+                      else openModalDetail(item.branch);
+                    }}
+                    className={`border border-slate-300 p-1 text-center font-bold font-mono ${isArea2 ? 'cursor-pointer hover:bg-blue-200' : 'cursor-pointer hover:bg-blue-200'} transition ${isArea2 ? 'text-white' : 'text-blue-600'}`}
+                  >
+                    {item.totalOrderPI}
+                  </td>
 
                   <td className={`border border-slate-300 p-1 text-center font-mono ${isArea2 ? 'text-white' : (item.workfail > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold')}`}>{item.workfail}</td>
                   <td className={`border border-slate-300 p-1 text-center font-mono ${isArea2 ? 'text-white' : (item.contwork > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold')}`}>{item.contwork}</td>
@@ -503,6 +850,266 @@ export default function TabelFulfillment({
           })()}
         </tbody>
       </table>
+
+      {/* SUMMARY SECTION */}
+      {(() => {
+        const area2Row = result.branchArray.find((item: any) => item.isArea2);
+        if (!area2Row) return null;
+        
+        const summaries = generateSummaryReport(area2Row, result.branchArray, result.branchArray);
+        
+        return (
+          <div data-export-ignore="true" className="bg-slate-50 p-4 rounded-lg mt-4 border border-slate-200">
+            <h3 className="text-sm font-bold text-slate-800 mb-3">📋 Report Summary</h3>
+            
+            {/* Header Summary */}
+            <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
+              <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.headerSummary}</p>
+              <button
+                onClick={() => copyToClipboard(summaries.headerSummary)}
+                className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
+              >
+                📋 Copy Header
+              </button>
+            </div>
+
+            {/* Regional Summary */}
+            <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
+              <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.regionalSummary}</p>
+              <button
+                onClick={() => copyToClipboard(summaries.regionalSummary)}
+                className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
+              >
+                📋 Copy Regional
+              </button>
+            </div>
+
+            {/* Branch Summary */}
+            <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
+              <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.branchSummary}</p>
+              <button
+                onClick={() => copyToClipboard(summaries.branchSummary)}
+                className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
+              >
+                📋 Copy Branch
+              </button>
+            </div>
+
+            {/* Full Summary */}
+            <div className="p-3 bg-white border border-slate-300 rounded">
+              <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.fullSummary}</p>
+              <button
+                onClick={() => copyToClipboard(summaries.fullSummary)}
+                className="mt-2 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition font-bold"
+              >
+                📋 Copy All
+              </button>
+            </div>
+
+            {copyFeedback && (
+              <div className="mt-2 text-xs text-center text-green-600 font-semibold">{copyFeedback}</div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* MODAL POPUP */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-y-auto animate-slideUp">
+            <div className="sticky top-0 flex justify-between items-center bg-gradient-to-r from-slate-800 to-slate-700 text-white p-4 rounded-t-xl">
+              <h3 className="font-bold text-lg">{modalTitle}</h3>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="text-white font-bold text-xl hover:bg-red-600 px-3 py-1 rounded transition duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 overflow-x-auto">
+              {/* MODAL DETAIL - Detail WONUM */}
+              {modalType === 'detail' && (
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-700 text-white">
+                      <th className="border border-slate-500 p-2 text-left font-bold">BRANCH</th>
+                      <th className="border border-slate-500 p-2 text-left font-bold">STO</th>
+                      <th className="border border-slate-500 p-2 text-left font-bold">WONUM</th>
+                      <th className="border border-slate-500 p-2 text-left font-bold">KATEGORI MANJA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalData.length > 0 ? (
+                      modalData.map((row: any, idx: number) => (
+                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-slate-50 hover:bg-blue-50'} style={{ transition: 'background-color 0.2s ease' }}>
+                          <td className="border border-slate-300 p-2 text-black">{row.BRANCH}</td>
+                          <td className="border border-slate-300 p-2 text-black">{row.STO}</td>
+                          <td className="border border-slate-300 p-2 font-mono text-black">{row.WONUM}</td>
+                          <td className="border border-slate-300 p-2 text-black">{row.KATEGORI_MANJA}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="border border-slate-300 p-2 text-center text-slate-800 font-semibold">
+                          Tidak ada data
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+
+              {/* MODAL SUMMARY - Summary dengan expand/collapse */}
+              {modalType === 'summary' && (
+                <table ref={summaryTableRef} className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-700 text-white">
+                      <th className="border border-slate-500 p-2 text-left font-bold">REGIONAL / BRANCH</th>
+                      <th className="border border-slate-500 p-2 text-center font-bold">MANJA EXP</th>
+                      <th className="border border-slate-500 p-2 text-center font-bold">MANJA HI</th>
+                      <th className="border border-slate-500 p-2 text-center font-bold">MANJA H+</th>
+                      <th className="border border-slate-500 p-2 text-center font-bold">NON MANJA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalData.map((regional: any) => (
+                      <React.Fragment key={regional.regional}>
+                        {/* REGIONAL ROW */}
+                        <tr className="bg-slate-100 hover:bg-slate-200">
+                          <td className="border border-slate-400 p-2 font-bold text-black">
+                            <span
+                              onClick={() => toggleExpandRow(regional.regional)}
+                              className="cursor-pointer select-none"
+                            >
+                              {expandedRows.has(regional.regional) ? '▼' : '▶'} {regional.regional}
+                            </span>
+                          </td>
+                          <td className="border border-slate-400 p-2 text-center font-bold text-black">
+                            {regional.manjaExp}
+                          </td>
+                          <td className="border border-slate-400 p-2 text-center font-bold text-black">
+                            {regional.manjaHI}
+                          </td>
+                          <td className="border border-slate-400 p-2 text-center font-bold text-black">
+                            {regional.manjaHPlus}
+                          </td>
+                          <td className="border border-slate-400 p-2 text-center font-bold text-black">
+                            {regional.nonManja}
+                          </td>
+                        </tr>
+
+                        {/* BRANCH ROWS - Show when expanded */}
+                        {expandedRows.has(regional.regional) &&
+                          regional.branches.map((branch: any) => (
+                            <React.Fragment key={`${regional.regional}-${branch.branch}`}>
+                              <tr className="bg-slate-50 hover:bg-blue-50">
+                                <td className="border border-slate-300 p-2 pl-6 text-black">
+                                  <span
+                                    onClick={() => toggleExpandRow(`${regional.regional}-${branch.branch}`)}
+                                    className="cursor-pointer select-none"
+                                  >
+                                    {expandedRows.has(`${regional.regional}-${branch.branch}`) ? '▼' : '▶'} {branch.branch}
+                                  </span>
+                                </td>
+                                <td className="border border-slate-300 p-2 text-center text-black">
+                                  {branch.manjaExp}
+                                </td>
+                                <td className="border border-slate-300 p-2 text-center text-black">
+                                  {branch.manjaHI}
+                                </td>
+                                <td className="border border-slate-300 p-2 text-center text-black">
+                                  {branch.manjaHPlus}
+                                </td>
+                                <td className="border border-slate-300 p-2 text-center text-black">
+                                  {branch.nonManja}
+                                </td>
+                              </tr>
+
+                              {/* SERVICE AREA (STO) ROWS - Show when branch expanded */}
+                              {expandedRows.has(`${regional.regional}-${branch.branch}`) &&
+                                branch.serviceAreas.map((sto: any) => (
+                                  <tr key={`${regional.regional}-${branch.branch}-${sto.serviceArea}`} className="bg-white hover:bg-blue-50">
+                                    <td className="border border-slate-300 p-2 pl-12 text-black">
+                                      {sto.serviceArea}
+                                    </td>
+                                    <td className="border border-slate-300 p-2 text-center text-black">
+                                      {sto.manjaExp}
+                                    </td>
+                                    <td className="border border-slate-300 p-2 text-center text-black">
+                                      {sto.manjaHI}
+                                    </td>
+                                    <td className="border border-slate-300 p-2 text-center text-black">
+                                      {sto.manjaHPlus}
+                                    </td>
+                                    <td className="border border-slate-300 p-2 text-center text-black">
+                                      {sto.nonManja}
+                                    </td>
+                                  </tr>
+                                ))}
+                            </React.Fragment>
+                          ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {modalData.length === 0 && (
+                <div className="text-center text-slate-800 font-semibold p-4">Tidak ada data</div>
+              )}
+
+              <div className="mt-4 text-sm text-slate-800 font-semibold">
+                {modalType === 'detail' && `Total: ${modalData.length} records`}
+              </div>
+            </div>
+
+            <div className="bg-slate-100 px-4 py-3 border-t flex justify-end gap-2 rounded-b-xl">
+              {modalType === 'summary' && showExportButton && (
+                <button
+                  onClick={exportSummaryTable}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200 flex items-center gap-2"
+                >
+                  📥 Export PNG
+                </button>
+              )}
+              <button
+                onClick={() => setModalOpen(false)}
+                className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded transition duration-200"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes slideUp {
+          from {
+            transform: translateY(20px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+        .animate-slideUp {
+          animation: slideUp 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

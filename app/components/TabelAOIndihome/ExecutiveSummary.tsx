@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { format, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns';
 import { Bar, Line } from 'react-chartjs-2';
 import {
@@ -200,6 +200,48 @@ export default function ExecutiveSummary({
 
   const summary = calculateExecutiveSummary();
 
+  const [copyFeedback, setCopyFeedback] = useState('');
+
+  // ============================================
+  // FUNGSI COPY TO CLIPBOARD
+  // ============================================
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback('✓ Copied!');
+      setTimeout(() => setCopyFeedback(''), 2000);
+    } catch (error) {
+      console.error('Copy failed:', error);
+      setCopyFeedback('✗ Copy failed');
+    }
+  };
+
+  // ============================================
+  // FUNGSI GENERATE PS/RE REPORT
+  // ============================================
+  const generatePsReReport = () => {
+    const currentDate = new Date();
+    const currentMonth = format(currentDate, 'MMMM yyyy').charAt(0).toUpperCase() + format(currentDate, 'MMMM yyyy').slice(1);
+    
+    let report = `Report PS/RE Indihome Mtd ${currentMonth}\n`;
+    report += '===================\n';
+    report += 'NO | BRANCH | PS/RE\n';
+    
+    // Branch data sorted by psRePercent descending
+    const sortedBranches = [...summary.branchData].sort((a, b) => b.psRePercent - a.psRePercent);
+    
+    sortedBranches.forEach((item: any, idx: number) => {
+      const status = item.psRePercent >= 85 ? '✅' : '❌';
+      report += `${idx + 1} | ${item.branch} | ${item.psRePercent.toFixed(2)}% | ${status}\n`;
+    });
+    
+    // AREA 2 total
+    const area2Status = summary.branchGrandTotalPsRe >= 85 ? '✅' : '❌';
+    report += `# | AREA 2 | ${summary.branchGrandTotalPsRe.toFixed(2)}% | ${area2Status}`;
+    
+    return report;
+  };
+
   if (filteredData.length === 0 || summary.branchData.length === 0) {
     return null;
   }
@@ -292,7 +334,7 @@ export default function ExecutiveSummary({
 
       {/* TABEL REGIONAL */}
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">📋 Tabel Regional</h3>
+        <h3 className="text-sm font-semibold text-slate-700 mb-2">📋 Regional TA</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
@@ -339,7 +381,7 @@ export default function ExecutiveSummary({
 
       {/* TABEL BRANCH */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">📋 Tabel Branch</h3>
+        <h3 className="text-sm font-semibold text-slate-700 mb-2">📋 Branch TA</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
@@ -422,6 +464,25 @@ export default function ExecutiveSummary({
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* SUMMARY SECTION - PS/RE REPORT */}
+      <div data-export-ignore="true" className="bg-slate-50 p-4 rounded-lg mt-4 border border-slate-200">
+        <h3 className="text-sm font-bold text-slate-800 mb-3">📋 Report Summary</h3>
+        
+        <div className="p-3 bg-white border border-slate-300 rounded">
+          <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{generatePsReReport()}</p>
+          <button
+            onClick={() => copyToClipboard(generatePsReReport())}
+            className="mt-2 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition font-bold"
+          >
+            📋 Copy Report
+          </button>
+        </div>
+
+        {copyFeedback && (
+          <div className="mt-2 text-xs text-center text-green-600 font-semibold">{copyFeedback}</div>
+        )}
       </div>
     </div>
   );

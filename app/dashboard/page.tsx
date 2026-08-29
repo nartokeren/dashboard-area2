@@ -80,13 +80,11 @@ export default function DashboardPage() {
   });
 
   // ============================================
-  // 4. DEFAULT FILTER (BULAN INI)
+  // 4. DEFAULT FILTER (TIDAK ADA BATAS BULAN)
   // ============================================
   useEffect(() => {
-    const now = new Date();
-    const firstDay = startOfMonth(now);
-    setDateFrom(format(firstDay, 'yyyy-MM-dd'));
-    setDateTo(format(now, 'yyyy-MM-dd'));
+    setDateFrom('');
+    setDateTo('');
   }, []);
 
   // ============================================
@@ -164,19 +162,11 @@ export default function DashboardPage() {
           SCID: String(row['SCID'] || ''),
         }));
 
-        // 🔥 FILTER BULAN INI PAKAI parseDate
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-        const filteredData = rawData.filter((row: any) => {
-          const dateCreated = parseDate(row.DATECREATED);
-          if (!dateCreated) return false;
-          return dateCreated >= startOfMonth && dateCreated <= endOfMonth;
-        });
+        // 🔥 SEMUA DATA YANG TERUPLOAD HARUS TAMPIL TANPA BATAS BULAN
+        const filteredData = rawData;
 
         console.log('📊 TOTAL DATA DARI EXCEL:', json.length);
-        console.log('📊 DATA BULAN INI:', filteredData.length);
+        console.log('📊 DATA TERUPLOAD:', filteredData.length);
         console.log('📊 SAMPLE DATE:', filteredData.slice(0, 3).map((row: any) => row.DATECREATED));
 
         setDataPerCategory((prev) => ({
@@ -188,7 +178,7 @@ export default function DashboardPage() {
           [currentKey]: filteredData,
         }));
 
-        alert(`✅ Berhasil! ${filteredData.length} baris data dimuat (bulan ${format(now, 'MMMM yyyy')}).`);
+        alert(`✅ Berhasil! ${filteredData.length} baris data dimuat dari file Excel.`);
       } catch (error) {
         console.error('Error upload:', error);
         alert('❌ Gagal membaca file. Pastikan format Excel benar.');

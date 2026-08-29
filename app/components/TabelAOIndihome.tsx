@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import FilterAndCards from './TabelAOIndihome/FilterAndCards';
 import ExecutiveSummary from './TabelAOIndihome/ExecutiveSummary';
 import TabelFulfillment from './TabelAOIndihome/TabelFulfillment';
+import TabelPsReH1 from './TabelAOIndihome/TabelPsReH1';
 import TabelPerJam from './TabelAOIndihome/TabelPerJam';
 import TabelSisaOrderMTD from './TabelAOIndihome/TabelSisaOrderMTD';
 import TabelSisaOrder from './TabelAOIndihome/TabelSisaOrder';
@@ -143,6 +144,21 @@ export default function TabelAOIndihome({
         return;
       }
 
+      const hiddenSummaryNodes = Array.from(
+        element.querySelectorAll('[data-export-ignore="true"]')
+      ) as HTMLElement[];
+
+      const originalDisplayStates = hiddenSummaryNodes.map((node) => ({
+        node,
+        display: node.style.display,
+        visibility: node.style.visibility,
+      }));
+
+      originalDisplayStates.forEach(({ node }) => {
+        node.style.display = 'none';
+        node.style.visibility = 'hidden';
+      });
+
       // 🔥 SIMPAN STYLE ASLI
       const originalOverflow = element.style.overflow;
       const originalWidth = element.style.width;
@@ -171,9 +187,7 @@ export default function TabelAOIndihome({
           minWidth: 'max-content',
           width: 'auto',
         },
-        // 🔥 FILTER UNTUK SKIP ELEMEN YANG GAK PERLU
         filter: (node: any) => {
-          // Skip tombol export yang mungkin masih ada di dalam
           if (node.className && node.className.includes && node.className.includes('bg-purple-600')) {
             return false;
           }
@@ -187,6 +201,11 @@ export default function TabelAOIndihome({
       element.style.minWidth = originalMinWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.transform = originalTransform;
+
+      originalDisplayStates.forEach(({ node, display, visibility }) => {
+        node.style.display = display;
+        node.style.visibility = visibility;
+      });
 
       const link = document.createElement('a');
       link.download = `${fileName}_${format(new Date(), 'yyyyMMdd')}.png`;
@@ -317,7 +336,31 @@ export default function TabelAOIndihome({
       </div>
 
       {/* ========================================== */}
-      {/* SECTION 3: TABEL PER-JAM */}
+      {/* SECTION 3: TABEL PS/RE H-1 */}
+      {/* ========================================== */}
+      <div className="relative mb-6">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => exportSection('tabel-psre-h1-content', 'PS_RE_H1')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+          >
+            🖼️ Export PNG
+          </button>
+        </div>
+        <div id="tabel-psre-h1-content" className="pb-4">
+          <TabelPsReH1
+            filteredData={safeFilteredData}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            regionalMapping={regionalMapping}
+            parseDate={parseDate}
+            exportSection={exportSection}
+          />
+        </div>
+      </div>
+
+      {/* ========================================== */}
+      {/* SECTION 4: TABEL PER-JAM */}
       {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">
@@ -344,7 +387,7 @@ export default function TabelAOIndihome({
       </div>
 
       {/* ========================================== */}
-      {/* SECTION 4: TABEL SISA ORDER MTD */}
+      {/* SECTION 5: TABEL SISA ORDER MTD */}
       {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">
@@ -364,7 +407,7 @@ export default function TabelAOIndihome({
       </div>
 
       {/* ========================================== */}
-      {/* SECTION 5: TABEL SISA ORDER H-1 */}
+      {/* SECTION 6: TABEL SISA ORDER H-1 */}
       {/* ========================================== */}
       <div className="relative mb-6">
         <div className="flex justify-end mb-2">

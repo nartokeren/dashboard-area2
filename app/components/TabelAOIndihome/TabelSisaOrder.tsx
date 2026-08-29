@@ -142,7 +142,7 @@ export default function TabelSisaOrder({
     <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mt-6 relative pb-4">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-sm font-bold text-slate-800">
-          📋 SISA ORDER TIDAK PS H-1
+          📋 Sisa Order Indihome Tidak PS H-1
         </h2>
         {exportSection && (
           <button
