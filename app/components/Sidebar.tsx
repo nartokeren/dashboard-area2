@@ -47,8 +47,8 @@ const menuData: MenuItem[] = [
         id: 'ebis',
         label: 'EBIS',
         subSubItems: [
-          { id: 'ebis-ao', label: 'AO' },
-          { id: 'ebis-pda', label: 'PDA' },
+          { id: 'ebis-datin', label: 'DATIN' },
+          { id: 'ebis-wifi', label: 'WIFI' },
         ],
       },
     ],
@@ -97,21 +97,21 @@ export default function Sidebar({
 
   return (
     <div
-      className={`h-full bg-slate-800 text-white transition-all duration-300 ${
+      className={`h-full bg-[#111d30] text-white transition-all duration-300 ${
         isOpen ? 'w-64' : 'w-16'
-      } flex flex-col relative flex-shrink-0`}
+      } relative flex flex-shrink-0 flex-col border-r border-white/5`}
     >
       {/* Tombol Toggle */}
       <button
         onClick={toggleSidebar}
-        className="p-3 text-white hover:bg-slate-700 transition-colors flex items-center gap-2 border-b border-slate-700"
+        className="flex items-center gap-2 border-b border-white/10 px-4 py-4 text-white transition-colors hover:bg-white/5"
       >
         {isOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
-        {isOpen && <span className="font-bold">MENU</span>}
+        {isOpen && <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-200">Navigation</span>}
       </button>
 
       {/* Menu Items */}
-      <nav className="flex-1 overflow-y-auto py-2">
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
         {menuData.map((item) => {
           const isActive = activeMenu === item.id;
           const isExpanded = expandedMenus[item.id] || false;
@@ -122,8 +122,8 @@ export default function Sidebar({
             return (
               <div
                 key={item.id}
-                className={`flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-slate-700 transition-colors ${
-                  isActive ? 'bg-blue-600' : ''
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 cursor-pointer transition-colors hover:bg-white/8 ${
+                  isActive ? 'bg-cyan-400 font-semibold text-[#102238] shadow-lg shadow-cyan-950/20' : 'text-slate-300'
                 }`}
                 onClick={handleHomeClick}
               >
@@ -137,8 +137,8 @@ export default function Sidebar({
             <div key={item.id}>
               {/* Menu Utama */}
               <div
-                className={`flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-slate-700 transition-colors ${
-                  isActive && !hasSubItems ? 'bg-blue-600' : ''
+                className={`flex items-center justify-between rounded-xl px-3 py-3 cursor-pointer transition-colors hover:bg-white/8 ${
+                  isActive && !hasSubItems ? 'bg-cyan-400 font-semibold text-[#102238]' : 'text-slate-200'
                 }`}
                 onClick={() => {
                   if (hasSubItems) {
@@ -159,7 +159,7 @@ export default function Sidebar({
 
               {/* Sub Menu */}
               {hasSubItems && isExpanded && isOpen && (
-                <div className="bg-slate-700">
+                <div className="mt-1 rounded-xl bg-[#192940] p-1">
                   {item.subItems!.map((sub) => {
                     const isSubActive = activeSubMenu === sub.id;
                     const hasSubSubItems = sub.subSubItems && sub.subSubItems.length > 0;
@@ -168,8 +168,8 @@ export default function Sidebar({
                     return (
                       <div key={sub.id}>
                         <div
-                          className={`flex items-center justify-between pl-6 pr-4 py-2 text-sm cursor-pointer hover:bg-slate-600 transition-colors ${
-                            isSubActive && !hasSubSubItems ? 'bg-blue-500' : ''
+                          className={`flex items-center justify-between rounded-lg py-2.5 pl-4 pr-3 text-sm cursor-pointer transition-colors hover:bg-white/8 ${
+                            isSubActive && !hasSubSubItems ? 'bg-cyan-400 text-[#102238]' : 'text-slate-300'
                           }`}
                           onClick={() => {
                             if (hasSubSubItems) {
@@ -187,14 +187,14 @@ export default function Sidebar({
 
                         {/* Sub-sub Menu */}
                         {hasSubSubItems && isSubExpanded && (
-                          <div className="bg-slate-600">
+                          <div className="rounded-lg bg-[#101c2f] px-1 py-1">
                             {sub.subSubItems!.map((subSub) => {
                               const isSubSubActive = activeSubSubMenu === subSub.id;
                               return (
                                 <div
                                   key={subSub.id}
-                                  className={`pl-12 pr-4 py-2 text-xs cursor-pointer hover:bg-slate-500 transition-colors ${
-                                    isSubSubActive ? 'bg-blue-400' : ''
+                                  className={`rounded-md py-2 pl-10 pr-3 text-xs cursor-pointer transition-colors hover:bg-white/8 ${
+                                    isSubSubActive ? 'bg-cyan-300 font-semibold text-[#102238]' : 'text-slate-400'
                                   }`}
                                   onClick={() => onSelectMenu(item.id, sub.id, subSub.id)}
                                 >
@@ -215,11 +215,11 @@ export default function Sidebar({
       </nav>
 
       {/* Footer - Developer Name */}
-      <div className="border-t border-slate-700 p-3 text-xs text-slate-400 text-center">
+      <div className="border-t border-white/10 p-4 text-center text-xs text-slate-400">
         {isOpen ? (
           <>
-            <div className="text-slate-300 font-medium">Rudi Narto Lutfianto</div>
-            <div className="text-[10px] text-slate-500">Developer</div>
+            <div className="font-medium text-slate-200">Rudi Narto Lutfianto</div>
+            <div className="mt-1 text-[10px] uppercase tracking-wider text-slate-500">Developer</div>
           </>
         ) : (
           <div className="text-sm">👨‍💻</div>
