@@ -72,18 +72,23 @@ const getBucket = (duration: unknown): Bucket | null => {
   return 'moreThanThree';
 };
 
-const isCriticalRow = (row: any) => {
-  if (/TSQ/i.test(String(row.Description ?? ''))) return false;
+const isTsqRow = (row: any, title: 'DATIN' | 'WIFI') => {
+  const description = String(row.Description ?? '');
+  return title === 'WIFI' ? /Review Order/i.test(description) : /TSQ/i.test(description);
+};
+
+const isCriticalRow = (row: any, title: 'DATIN' | 'WIFI') => {
+  if (isTsqRow(row, title)) return false;
 
   const remaining = String(row.Sisa ?? '').toLowerCase();
   return remaining.includes('🟡') || remaining.includes('🔴');
 };
 
-const getRowCounts = (rows: any[]): Counts => {
+const getRowCounts = (rows: any[], title: 'DATIN' | 'WIFI'): Counts => {
   const counts = emptyCounts();
 
   rows.forEach((row) => {
-    if (/TSQ/i.test(String(row.Description ?? ''))) {
+    if (isTsqRow(row, title)) {
       counts.tsq += 1;
       return;
     }
@@ -151,7 +156,7 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
         const stoRows: EbisRow[] = Array.from(stoGroups.entries()).map(([sto, data]) => ({
           name: sto,
           level: 'sto',
-          counts: getRowCounts(data),
+          counts: getRowCounts(data, title),
         }));
           const hsaCounts = emptyCounts();
           stoRows.forEach((row) => addCounts(hsaCounts, row.counts));
@@ -179,7 +184,7 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
       area: { name: 'AREA 2', level: 'area' as const, counts: areaCounts },
       regionalRows: regionalRows.sort(sortByRegionalOrder),
     };
-  }, [filteredData]);
+  }, [filteredData, title]);
 
   const renderCounts = (counts: Counts, textClass = 'text-blue-500') => (
     <>
@@ -221,7 +226,7 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
 
   const detailSummary = useMemo(() => {
     const criticalRows = filteredData
-      .filter(isCriticalRow)
+      .filter((row) => isCriticalRow(row, title))
       .sort((first, second) => {
         const firstDistrict = String(first.District || first.DISTRICT_TIF || '').toUpperCase();
         const secondDistrict = String(second.District || second.DISTRICT_TIF || '').toUpperCase();
