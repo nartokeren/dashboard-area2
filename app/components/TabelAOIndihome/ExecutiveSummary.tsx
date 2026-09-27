@@ -257,12 +257,12 @@ export default function ExecutiveSummary({
                 {
                   label: 'RE',
                   data: summary.dailyData.map((item: any) => item.re),
-                  backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                  backgroundColor: 'rgba(69, 142, 152, 0.68)',
                 },
                 {
                   label: 'PS',
                   data: summary.dailyData.map((item: any) => item.ps),
-                  backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                  backgroundColor: 'rgba(74, 137, 96, 0.68)',
                 },
               ],
             }}
@@ -289,8 +289,8 @@ export default function ExecutiveSummary({
                 {
                   label: 'PS/RE %',
                   data: summary.dailyData.map((item: any) => item.psRePercent),
-                  borderColor: 'rgb(239, 68, 68)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  borderColor: 'rgb(167, 94, 91)',
+                  backgroundColor: 'rgba(167, 94, 91, 0.12)',
                   borderWidth: 2,
                   pointRadius: 3,
                   tension: 0.3,

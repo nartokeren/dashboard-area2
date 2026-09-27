@@ -14,6 +14,8 @@ import Sidebar from '../components/Sidebar';
 import TabelAOIndihome from '../components/TabelAOIndihome';
 import TabelPDAIndihome from '../components/TabelPDAIndihome';
 import TabelEBIS from '../components/TabelEBIS';
+import TabelEBISOLO from '../components/TabelEBISOLO';
+import TabelEBISVULA from '../components/TabelEBISVULA';
 import TabelKosong from '../components/TabelKosong';
 
 export default function DashboardPage() {
@@ -31,6 +33,8 @@ export default function DashboardPage() {
     'indibiz-pda',
     'ebis-datin',
     'ebis-wifi',
+    'ebis-olo',
+    'ebis-vula',
   ];
 
   const [dataPerCategory, setDataPerCategory] = useState<{
@@ -148,15 +152,18 @@ export default function DashboardPage() {
 
       const rawData = json.map((row: any) => ({
         WONUM: String(getColumn(row, ['WONUM']) || ''),
+        WORKORDER: String(getColumn(row, ['WORKORDER']) || ''),
         NoOrder: String(getColumn(row, ['NO ORDER', 'NO_ORDER', 'WONUM']) || ''),
+        SCOrderId: String(getColumn(row, ['SC ORDER NO/TRACK ID/CSRM NO']) || ''),
         SCID: String(getColumn(row, ['SC', 'SCID', 'NO ORDER', 'NO_ORDER']) || ''),
         STATUS: String(getColumn(row, ['STATUS']) || ''),
-        DATECREATED: getColumn(row, ['DATECREATED']),
+        DATECREATED: getColumn(row, ['DATECREATED', 'DATE_CREATED']),
         STATUSDATE: getColumn(row, ['STATUSDATE']),
         Description: String(getColumn(row, ['DESCRIPTION', 'Description']) || ''),
         TTDC: getColumn(row, ['TTDC', 'DURASI TTDC']),
         Regional: String(getColumn(row, ['REGIONAL', 'REGION']) || ''),
         District: String(getColumn(row, ['DISTRICT', 'DISTRICT_TIF']) || ''),
+        Branch: String(getColumn(row, ['BRANCH', 'DISTRICT', 'DISTRICT_TIF']) || ''),
         DISTRICT_TIF: String(getColumn(row, ['DISTRICT_TIF', 'DISTRICT']) || ''),
         HSA: String(getColumn(row, ['HSA']) || ''),
         Sisa: String(getColumn(row, ['SISA', 'SISA TTDC', 'SISA_TTDC']) || ''),
@@ -272,7 +279,7 @@ export default function DashboardPage() {
   }), [currentKey, dataPerCategory, filteredDataPerCategory, dateFrom, dateTo]);
 
   return (
-    <div className="flex min-h-screen bg-[#f3f6fa]">
+    <div className="flex min-h-screen bg-slate-50">
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -297,16 +304,14 @@ export default function DashboardPage() {
         <div className="mx-auto max-w-[1480px]">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="fixed left-4 top-4 z-50 rounded-xl bg-[#17263d] p-3 text-white shadow-lg shadow-slate-900/20 transition-colors hover:bg-[#213651] lg:hidden"
+            className="fixed left-4 top-4 z-50 rounded-xl bg-slate-800 p-3 text-white shadow-lg shadow-slate-900/20 transition-colors hover:bg-slate-700 lg:hidden"
           >
             {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
           </button>
 
-          <div className="relative mb-7 overflow-hidden rounded-2xl bg-[#17263d] px-6 py-7 text-white shadow-[0_16px_45px_rgba(23,38,61,0.16)] md:px-10 md:py-8">
-            <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full border-[34px] border-cyan-400/10" />
-            <div className="absolute bottom-[-100px] right-32 h-48 w-48 rounded-full border-[22px] border-white/5" />
+          <div className="relative mb-7 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 px-6 py-7 text-white shadow-[0_16px_45px_rgba(23,38,61,0.14)] md:px-10 md:py-8">
             <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div>
+              <div className="border-l-2 border-cyan-400 pl-4">
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-cyan-300">Operations Control Room</p>
                 <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                   Report Monitoring Order <span className="text-cyan-300">AREA 2</span>
@@ -348,6 +353,20 @@ export default function DashboardPage() {
             <TabelEBIS
               filteredData={filteredDataPerCategory[currentKey] || []}
               title="WIFI"
+              handleFileUpload={handleFileUpload}
+            />
+          )}
+
+          {activeSubSubMenu === 'ebis-olo' && (
+            <TabelEBISOLO
+              filteredData={filteredDataPerCategory[currentKey] || []}
+              handleFileUpload={handleFileUpload}
+            />
+          )}
+
+          {activeSubSubMenu === 'ebis-vula' && (
+            <TabelEBISVULA
+              filteredData={filteredDataPerCategory[currentKey] || []}
               handleFileUpload={handleFileUpload}
             />
           )}

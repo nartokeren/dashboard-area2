@@ -8,13 +8,10 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex flex-col items-center justify-center p-4">
-      <div className="max-w-2xl w-full text-center">
-
-        {/* --- BAGIAN LOGO (DI TAMBAHKAN DI SINI) --- */}
-        <div className="flex justify-center items-center gap-6 mb-6">
-          {/* Logo Perusahaanmu */}
-          <div className="w-24 h-24 relative">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-5 py-12">
+      <div className="w-full max-w-4xl text-center">
+        <div className="mb-8 flex items-center justify-center gap-7 md:gap-10">
+          <div className="relative h-20 w-20 md:h-24 md:w-24">
             <Image
               src="/png TA.png" // Ganti dengan nama file logo kamu
               alt="Logo Perusahaan"
@@ -23,8 +20,7 @@ export default function Home() {
             />
           </div>
 
-          {/* Logo Telkom Indonesia */}
-          <div className="w-24 h-24 relative">
+          <div className="relative h-20 w-20 md:h-24 md:w-24">
             <Image
               src="/png telkom.png" // Ganti dengan nama file logo Telkom
               alt="Logo Telkom Indonesia"
@@ -33,8 +29,7 @@ export default function Home() {
             />
           </div>
 
-          {/* Logo Andantara (Opsional, kalo ada) */}
-          <div className="w-24 h-24 relative">
+          <div className="relative h-20 w-20 md:h-24 md:w-24">
             <Image
               src="/png danantara.png" // Ganti dengan nama file logo Andantara
               alt="Logo Andantara"
@@ -43,38 +38,28 @@ export default function Home() {
             />
           </div>
         </div>
-
-        {/* --- AKHIR BAGIAN LOGO --- */}
-
-        <h1 className="text-4xl md:text-5xl font-bold text-slate-800 mb-2">
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Operations Control Room</p>
+        <h1 className="mb-2 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
           Telkom Akses
         </h1>
-        <p className="text-xl text-slate-600 mb-1">
-          Monitoring Order
-        </p>
-        <p className="text-lg text-slate-500 mb-8">
-          AREA 2
-        </p>
-
-        <div className="w-24 h-1 bg-blue-600 mx-auto mb-8"></div>
-
-        <p className="text-slate-600 mb-8 max-w-md mx-auto">
-          Dashboard monitoring untuk memantau performa order di AREA 2.
-          Silakan masuk untuk melihat laporan harian.
+        <p className="text-lg font-medium text-slate-700">Monitoring Order <span className="text-cyan-700">AREA 2</span></p>
+        <div className="mx-auto my-7 h-px w-20 bg-cyan-600" />
+        <p className="mx-auto mb-8 max-w-xl text-sm leading-6 text-slate-600">
+          Dashboard terpusat untuk memantau progres, usia, dan performa order harian.
         </p>
 
         <button
           onClick={() => router.push('/dashboard')}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-lg transition-all hover:scale-105 flex items-center gap-2 mx-auto"
+          className="mx-auto flex items-center gap-2 rounded-lg bg-blue-700 px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus-visible:outline-offset-4"
         >
           <FaBars size={18} />
-          Masuk ke Dashboard
+          Buka Dashboard
         </button>
 
-        <div className="mt-12 text-xs text-slate-400">
+        <div className="mt-14 text-xs text-slate-500">
           Rudi Narto Lutfianto • Developer
         </div>
       </div>
-    </div>
+    </main>
   );
 }

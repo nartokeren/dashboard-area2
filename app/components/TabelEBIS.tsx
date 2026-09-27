@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { regionalMapping } from '@/constants';
+import { regionalMapping, regionalOrder } from '@/constants';
 
 type Bucket = 'tsq' | 'lessThanOne' | 'oneToTwo' | 'twoToThree' | 'moreThanThree';
 
@@ -103,21 +103,14 @@ const getRowCounts = (rows: any[], title: 'DATIN' | 'WIFI'): Counts => {
 const normalizeRegional = (value: unknown, district: string) => {
   const sourceRegional = String(value ?? '').trim().toUpperCase();
   const mappedRegional = regionalMapping[district];
-  const regional = sourceRegional || mappedRegional || 'LAINNYA';
-
-  if (regional === 'BANTEN' || regional === 'JAKARTA' || regional === 'JAKARTA & BANTEN') {
-    return 'JAKARTA & BANTEN';
-  }
-  if (regional === 'JAWA BARAT' || regional === 'JABAR') return 'JABAR';
-  return regional;
+  return mappedRegional || sourceRegional || 'LAINNYA';
 };
 
 const sortByRegionalOrder = (a: EbisRow, b: EbisRow) => {
-  const displayOrder = ['EASTERN JABOTABEK', 'JAKARTA & BANTEN', 'JABAR'];
-  const aIndex = displayOrder.indexOf(a.name);
-  const bIndex = displayOrder.indexOf(b.name);
+  const aIndex = regionalOrder.indexOf(a.name);
+  const bIndex = regionalOrder.indexOf(b.name);
   if (aIndex !== -1 || bIndex !== -1) {
-    return (aIndex === -1 ? displayOrder.length : aIndex) - (bIndex === -1 ? displayOrder.length : bIndex);
+    return (aIndex === -1 ? regionalOrder.length : aIndex) - (bIndex === -1 ? regionalOrder.length : bIndex);
   }
   return a.name.localeCompare(b.name);
 };
@@ -320,30 +313,52 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
     return row.level === 'regional' ? !collapsedRows.has(rowKey) : expandedRows.has(rowKey);
   };
 
-  const renderRow = (row: EbisRow, depth: number): React.ReactNode[] => [
+  const renderRow = (row: EbisRow): React.ReactNode[] => [
     <tr key={`${row.level}-${row.name}`} className={row.level === 'regional' ? 'bg-amber-50' : 'bg-white'}>
-      <td className={`border border-slate-200 px-2 py-1 text-left ${getRowTextClass(row.level)}`}>
-        <span style={{ paddingLeft: `${depth * 18}px` }}>
-          {row.children?.length ? (
-            <button
-              type="button"
-              onClick={() => toggleRow(row)}
-              className="mr-1 inline-flex h-4 w-4 items-center justify-center font-bold text-violet-600 hover:text-violet-800"
-              aria-label={`${isRowExpanded(row) ? 'Collapse' : 'Expand'} ${row.name}`}
-            >
-              {isRowExpanded(row) ? '−' : '+'}
-            </button>
-          ) : (
-            <span className="mr-1 inline-block w-4" />
-          )}
-          {row.name}
-        </span>
-      </td>
+      {row.level === 'regional' ? (
+        <>
+          <td className={`border border-slate-200 px-2 py-1 text-left ${getRowTextClass(row.level)}`}>
+            {row.children?.length ? (
+              <button
+                type="button"
+                onClick={() => toggleRow(row)}
+                className="mr-1 inline-flex h-4 w-4 items-center justify-center font-bold text-violet-600 hover:text-violet-800"
+                aria-label={`${isRowExpanded(row) ? 'Collapse' : 'Expand'} ${row.name}`}
+              >
+                {isRowExpanded(row) ? '−' : '+'}
+              </button>
+            ) : null}
+            {row.name}
+          </td>
+          <td className="border border-slate-200 px-2 py-1" />
+        </>
+      ) : (
+        <>
+          <td className="border border-slate-200 px-2 py-1" />
+          <td className={`border border-slate-200 px-2 py-1 text-left ${getRowTextClass(row.level)}`}>
+            <span style={{ paddingLeft: `${row.level === 'district' ? 0 : row.level === 'hsa' ? 18 : 36}px` }}>
+              {row.children?.length ? (
+                <button
+                  type="button"
+                  onClick={() => toggleRow(row)}
+                  className="mr-1 inline-flex h-4 w-4 items-center justify-center font-bold text-violet-600 hover:text-violet-800"
+                  aria-label={`${isRowExpanded(row) ? 'Collapse' : 'Expand'} ${row.name}`}
+                >
+                  {isRowExpanded(row) ? '−' : '+'}
+                </button>
+              ) : (
+                <span className="mr-1 inline-block w-4" />
+              )}
+              {row.name}
+            </span>
+          </td>
+        </>
+      )}
       {renderCounts(row.counts, row.level === 'regional' ? 'font-bold text-blue-500' : 'text-blue-500')}
       <td className={`border border-slate-200 px-2 py-1 text-center ${row.level === 'regional' ? 'font-bold' : ''} text-blue-500`}>{getTotal(row.counts)}</td>
     </tr>,
     ...(isRowExpanded(row)
-      ? (row.children?.flatMap((child) => renderRow(child, depth + 1)) || [])
+      ? (row.children?.flatMap((child) => renderRow(child)) || [])
       : []),
   ];
 
@@ -372,7 +387,7 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
           <button
             type="button"
             onClick={exportTableToPNG}
-            className="rounded-lg bg-[#6d5bd0] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#5b4ab8]"
+            className="rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-purple-700"
           >
             Export PNG
           </button>
@@ -383,10 +398,11 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
         <h2 className="mt-1 text-base font-bold tracking-tight text-slate-800">{title} · Aging Order</h2>
         <p className="mb-3 mt-1 text-xs text-slate-500">TSQ dari kolom Description. Aging lainnya dari kolom Durasi TTDC.</p>
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="min-w-[760px] w-full border-collapse text-[11px]">
+          <table className="min-w-[900px] w-full border-collapse text-[11px]">
           <thead>
             <tr className="text-white">
-              <th className="border border-slate-200 bg-slate-50 px-2 py-2 text-left font-semibold text-slate-700">AREA / REG / DISTRICT / HSA / STO</th>
+              <th className="w-[18%] border border-slate-200 bg-slate-50 px-2 py-2 text-left font-semibold text-slate-700">REGIONAL</th>
+              <th className="w-[22%] border border-slate-200 bg-slate-50 px-2 py-2 text-left font-semibold text-slate-700">BRANCH</th>
               <th className="border border-slate-200 bg-sky-500 px-2 py-2">TSQ</th>
               <th className="border border-slate-200 bg-emerald-400 px-2 py-2">&lt;1 Hari</th>
               <th className="border border-slate-200 bg-amber-400 px-2 py-2">1-2 Hari</th>
@@ -396,11 +412,11 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
             </tr>
           </thead>
           <tbody>
-            {rows.regionalRows.flatMap((row) => renderRow(row, 1))}
+            {rows.regionalRows.flatMap((row) => renderRow(row))}
           </tbody>
           <tfoot>
             <tr className="bg-slate-800 font-bold text-white">
-              <td className="border border-slate-700 px-2 py-2 text-left">AREA 2</td>
+              <td colSpan={2} className="border border-slate-700 px-2 py-2 text-left">AREA 2</td>
               {renderCounts(rows.area.counts, 'text-white')}
               <td className="border border-slate-700 px-2 py-2 text-center text-white">{getTotal(rows.area.counts)}</td>
             </tr>

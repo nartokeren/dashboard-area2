@@ -49,6 +49,8 @@ const menuData: MenuItem[] = [
         subSubItems: [
           { id: 'ebis-datin', label: 'DATIN' },
           { id: 'ebis-wifi', label: 'WIFI' },
+          { id: 'ebis-olo', label: 'OLO' },
+          { id: 'ebis-vula', label: 'VULA' },
         ],
       },
     ],
@@ -97,7 +99,7 @@ export default function Sidebar({
 
   return (
     <div
-      className={`h-full bg-[#111d30] text-white transition-all duration-300 ${
+      className={`h-full bg-slate-900 text-white transition-all duration-300 ${
         isOpen ? 'w-64' : 'w-16'
       } relative flex flex-shrink-0 flex-col border-r border-white/5`}
     >
@@ -123,7 +125,7 @@ export default function Sidebar({
               <div
                 key={item.id}
                 className={`flex items-center gap-3 rounded-xl px-3 py-3 cursor-pointer transition-colors hover:bg-white/8 ${
-                  isActive ? 'bg-cyan-400 font-semibold text-[#102238] shadow-lg shadow-cyan-950/20' : 'text-slate-300'
+                  isActive ? 'bg-cyan-300 font-semibold text-slate-950 shadow-lg shadow-slate-950/20' : 'text-slate-300'
                 }`}
                 onClick={handleHomeClick}
               >
@@ -138,7 +140,7 @@ export default function Sidebar({
               {/* Menu Utama */}
               <div
                 className={`flex items-center justify-between rounded-xl px-3 py-3 cursor-pointer transition-colors hover:bg-white/8 ${
-                  isActive && !hasSubItems ? 'bg-cyan-400 font-semibold text-[#102238]' : 'text-slate-200'
+                  isActive && !hasSubItems ? 'bg-cyan-300 font-semibold text-slate-950' : 'text-slate-200'
                 }`}
                 onClick={() => {
                   if (hasSubItems) {
@@ -159,7 +161,7 @@ export default function Sidebar({
 
               {/* Sub Menu */}
               {hasSubItems && isExpanded && isOpen && (
-                <div className="mt-1 rounded-xl bg-[#192940] p-1">
+                <div className="mt-1 rounded-xl bg-slate-800 p-1">
                   {item.subItems!.map((sub) => {
                     const isSubActive = activeSubMenu === sub.id;
                     const hasSubSubItems = sub.subSubItems && sub.subSubItems.length > 0;
@@ -169,7 +171,7 @@ export default function Sidebar({
                       <div key={sub.id}>
                         <div
                           className={`flex items-center justify-between rounded-lg py-2.5 pl-4 pr-3 text-sm cursor-pointer transition-colors hover:bg-white/8 ${
-                            isSubActive && !hasSubSubItems ? 'bg-cyan-400 text-[#102238]' : 'text-slate-300'
+                            isSubActive && !hasSubSubItems ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'
                           }`}
                           onClick={() => {
                             if (hasSubSubItems) {
@@ -187,14 +189,14 @@ export default function Sidebar({
 
                         {/* Sub-sub Menu */}
                         {hasSubSubItems && isSubExpanded && (
-                          <div className="rounded-lg bg-[#101c2f] px-1 py-1">
+                          <div className="rounded-lg bg-slate-900 px-1 py-1">
                             {sub.subSubItems!.map((subSub) => {
                               const isSubSubActive = activeSubSubMenu === subSub.id;
                               return (
                                 <div
                                   key={subSub.id}
                                   className={`rounded-md py-2 pl-10 pr-3 text-xs cursor-pointer transition-colors hover:bg-white/8 ${
-                                    isSubSubActive ? 'bg-cyan-300 font-semibold text-[#102238]' : 'text-slate-400'
+                                    isSubSubActive ? 'bg-cyan-200 font-semibold text-slate-950' : 'text-slate-400'
                                   }`}
                                   onClick={() => onSelectMenu(item.id, sub.id, subSub.id)}
                                 >

@@ -38,7 +38,7 @@ export default function FilterAndCards({
   return (
     <>
       {/* FILTER */}
-      <div className="bg-white p-3 rounded-lg shadow-md mb-4">
+      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">📅 DATECREATED</label>
@@ -59,7 +59,7 @@ export default function FilterAndCards({
         </div>
         <div className="flex flex-wrap gap-2 mt-2">
           <input type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="block text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
-          <button onClick={processData} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-1 px-4 rounded-lg">🔍 Proses Data</button>
+          <button onClick={processData} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700">Proses Data</button>
         </div>
         <p className="text-xs text-blue-600 font-semibold mt-1">📊 {filteredData.length} baris data ditampilkan</p>
       </div>
@@ -75,14 +75,14 @@ export default function FilterAndCards({
             { key: 'KENDALA_PELANGGAN', label: 'KENDALA PELANGGAN', val: result.totalKendalaPelanggan, sub: 'WORKFAIL', color: 'violet', bg: 'violet-100', text: 'violet-700' },
             { key: 'KENDALA_LAINNYA', label: 'KENDALA LAINNYA', val: result.totalKendalaLainnya, sub: 'WORKFAIL', color: 'slate', bg: 'slate-100', text: 'slate-700' },
           ].map((item) => (
-            <div key={item.key} className={`bg-white p-2 rounded-lg shadow-md border-l-4 border-${item.color}-500 relative`}>
+            <div key={item.key} className={`relative rounded-xl border border-slate-200 bg-white p-3 shadow-sm border-l-4 border-${item.color}-500`}>
               <p className="text-[10px] text-slate-500 font-semibold">{item.label}</p>
               <p className={`text-lg font-bold text-${item.color}-600`}>{item.val.toLocaleString()}</p>
               <p className="text-[8px] text-slate-400">{item.sub}</p>
               <button onClick={() => { const d = getDataForMetric(item.key); downloadData(d, item.key); }} className={`absolute top-1 right-1 text-[10px] bg-${item.bg} hover:bg-${item.color}-200 text-${item.text} px-1.5 py-0.5 rounded`}>📥</button>
             </div>
           ))}
-          <div className={`bg-white p-2 rounded-lg shadow-md border-l-4 ${result.psRePercent >= 85 ? 'border-green-500' : 'border-yellow-500'}`}>
+          <div className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm border-l-4 ${result.psRePercent >= 85 ? 'border-green-500' : 'border-yellow-500'}`}>
             <p className="text-[10px] text-slate-500 font-semibold">% PS/RE</p>
             <p className={`text-lg font-bold ${result.psRePercent >= 85 ? 'text-green-600' : 'text-yellow-600'}`}>{result.psRePercent.toFixed(2)}%</p>
             <p className="text-[8px] text-slate-400">Target 85%</p>

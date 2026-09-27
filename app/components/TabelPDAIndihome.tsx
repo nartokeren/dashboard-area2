@@ -586,7 +586,7 @@ export default function TabelPDAIndihome({
   return (
     <div>
       {/* FILTER + CARDS */}
-      <div className="bg-white p-3 rounded-lg shadow-md mb-4">
+      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">📅 DATECREATED</label>
@@ -634,7 +634,7 @@ export default function TabelPDAIndihome({
           />
           <button
             onClick={processData}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-1 px-4 rounded-lg"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             🔍 Proses Data
           </button>
@@ -655,7 +655,7 @@ export default function TabelPDAIndihome({
             { key: 'KENDALA_PELANGGAN', label: 'KENDALA PELANGGAN', val: result.totalKendalaPelanggan, sub: 'WORKFAIL', color: 'violet' },
             { key: 'KENDALA_LAINNYA', label: 'KENDALA LAINNYA', val: result.totalKendalaLainnya, sub: 'WORKFAIL', color: 'slate' },
           ].map((item) => (
-            <div key={item.key} className={`bg-white p-2 rounded-lg shadow-md border-l-4 border-${item.color}-500 relative`}>
+            <div key={item.key} className={`relative rounded-xl border border-slate-200 bg-white p-3 shadow-sm border-l-4 border-${item.color}-500`}>
               <p className="text-[10px] text-slate-500 font-semibold">{item.label}</p>
               <p className={`text-lg font-bold text-${item.color}-600`}>{item.val.toLocaleString()}</p>
               <p className="text-[8px] text-slate-400">{item.sub}</p>
@@ -739,12 +739,12 @@ export default function TabelPDAIndihome({
                               {
                                 label: 'RE',
                                 data: dailyData.map((item) => item.re),
-                                backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                                backgroundColor: 'rgba(69, 142, 152, 0.68)',
                               },
                               {
                                 label: 'PS',
                                 data: dailyData.map((item) => item.ps),
-                                backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                                backgroundColor: 'rgba(74, 137, 96, 0.68)',
                               },
                             ],
                           }}
@@ -771,8 +771,8 @@ export default function TabelPDAIndihome({
                               {
                                 label: 'PS/RE %',
                                 data: dailyData.map((item) => item.psRePercent),
-                                borderColor: 'rgb(239, 68, 68)',
-                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                borderColor: 'rgb(167, 94, 91)',
+                                backgroundColor: 'rgba(167, 94, 91, 0.12)',
                                 borderWidth: 2,
                                 pointRadius: 3,
                                 tension: 0.3,
