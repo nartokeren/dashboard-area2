@@ -238,17 +238,17 @@ export default function TabelEBISOLO({ filteredData, handleFileUpload }: TabelEB
     );
   }
 
-  const renderCountCells = (counts: OloCounts, isFooter = false) => {
+  const renderCountCells = (counts: OloCounts, isFooter = false, isSubtotal = false) => {
     return (
       <>
-        <td className={`border px-2 py-1 text-center font-bold ${isFooter ? 'border-slate-600 bg-cyan-700 text-white' : 'border-slate-200 bg-cyan-50 text-cyan-800'}`}>{counts.totalOrders}</td>
-        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-slate-800 text-white' : 'border-slate-200'}`}>{counts.survey}</td>
-        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-slate-800 text-white' : 'border-slate-200'}`}>{counts.progressWfm}</td>
-        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-slate-800 text-white' : 'border-slate-200'}`}>{counts.e2e}</td>
-        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-emerald-900 text-white' : 'border-slate-200 bg-emerald-50'}`}>{counts.age0To7}</td>
-        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-amber-900 text-white' : 'border-slate-200 bg-amber-50'}`}>{counts.age7To14}</td>
-        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-orange-900 text-white' : 'border-slate-200 bg-orange-50'}`}>{counts.age14To20}</td>
-        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-rose-900 text-white' : 'border-slate-200 bg-rose-50'}`}>{counts.ageOver20}</td>
+        <td className={`border px-2 py-1 text-center font-bold ${isFooter ? 'border-slate-600 bg-cyan-700 text-white' : isSubtotal ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-slate-200 bg-cyan-50 text-cyan-800'}`}>{counts.totalOrders}</td>
+        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-slate-800 text-white' : isSubtotal ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-slate-200'}`}>{counts.survey}</td>
+        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-slate-800 text-white' : isSubtotal ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-slate-200'}`}>{counts.progressWfm}</td>
+        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-slate-800 text-white' : isSubtotal ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-slate-200'}`}>{counts.e2e}</td>
+        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-emerald-900 text-white' : isSubtotal ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-slate-200 bg-emerald-50'}`}>{counts.age0To7}</td>
+        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-amber-900 text-white' : isSubtotal ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-slate-200 bg-amber-50'}`}>{counts.age7To14}</td>
+        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-orange-900 text-white' : isSubtotal ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-slate-200 bg-orange-50'}`}>{counts.age14To20}</td>
+        <td className={`border px-2 py-1 text-center ${isFooter ? 'border-slate-600 bg-rose-900 text-white' : isSubtotal ? 'border-blue-200 bg-blue-100 text-blue-800' : 'border-slate-200 bg-rose-50'}`}>{counts.ageOver20}</td>
       </>
     );
   };
@@ -292,18 +292,24 @@ export default function TabelEBISOLO({ filteredData, handleFileUpload }: TabelEB
           </thead>
           <tbody>
             {report.regionalRows.flatMap((regional) => [
-              <tr key={`regional-${regional.name}`} className="bg-amber-50 font-bold text-slate-800">
-                <td className="border border-slate-200 px-2 py-1.5">{regional.name}</td>
-                <td className="border border-slate-200 px-2 py-1.5" />
-                {renderCountCells(regional.counts)}
-              </tr>,
-              ...regional.branches.map((branch) => (
+              ...regional.branches.map((branch, index) => (
                 <tr key={`${regional.name}-${branch.name}`} className="bg-white text-slate-600 hover:bg-cyan-50/50">
-                  <td className="border border-slate-200 px-2 py-1.5" />
+                  {index === 0 && (
+                    <td rowSpan={regional.branches.length + 1} className="border border-slate-200 bg-blue-50 px-2 py-1.5 align-middle font-bold text-slate-800">
+                      {regional.name}
+                    </td>
+                  )}
                   <td className="border border-slate-200 px-2 py-1.5 font-medium">{branch.name}</td>
                   {renderCountCells(branch.counts)}
                 </tr>
               )),
+              <tr key={`subtotal-${regional.name}`} className="bg-blue-100 font-bold text-blue-800">
+                {regional.branches.length === 0 && (
+                  <td rowSpan={1} className="border border-slate-200 bg-blue-50 px-2 py-1.5">{regional.name}</td>
+                )}
+                <td className="border border-slate-200 px-2 py-1.5">SUB TOTAL</td>
+                {renderCountCells(regional.counts, false, true)}
+              </tr>,
             ])}
           </tbody>
           <tfoot>

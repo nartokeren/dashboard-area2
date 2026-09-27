@@ -116,8 +116,6 @@ const sortByRegionalOrder = (a: EbisRow, b: EbisRow) => {
 };
 
 export default function TabelEBIS({ filteredData, title, handleFileUpload }: TabelEBISProps) {
-  const [collapsedRows, setCollapsedRows] = useState<Set<string>>(new Set());
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [copyFeedback, setCopyFeedback] = useState('Salin summary');
   const tableExportId = `ebis-table-${title.toLowerCase()}`;
 
@@ -157,7 +155,7 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
         });
         const districtCounts = emptyCounts();
         hsaRows.forEach((row) => addCounts(districtCounts, row.counts));
-        districtRows.push({ name: district, level: 'district', counts: districtCounts, children: hsaRows });
+        districtRows.push({ name: district, level: 'district', counts: districtCounts });
       });
 
       const regionalCounts = emptyCounts();
@@ -290,17 +288,6 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
     }
   };
 
-  const toggleRow = (row: EbisRow) => {
-    const rowKey = `${row.level}-${row.name}`;
-    const target = row.level === 'regional' ? collapsedRows : expandedRows;
-    const setTarget = row.level === 'regional' ? setCollapsedRows : setExpandedRows;
-    const next = new Set(target);
-
-    if (next.has(rowKey)) next.delete(rowKey);
-    else next.add(rowKey);
-    setTarget(next);
-  };
-
   const getRowTextClass = (level: EbisRow['level']) => {
     if (level === 'regional') return 'font-semibold text-slate-800';
     if (level === 'district') return 'font-medium text-slate-600';
@@ -308,59 +295,47 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
     return 'text-slate-500';
   };
 
-  const isRowExpanded = (row: EbisRow) => {
-    const rowKey = `${row.level}-${row.name}`;
-    return row.level === 'regional' ? !collapsedRows.has(rowKey) : expandedRows.has(rowKey);
-  };
+  const countRows = (row: EbisRow): number => (
+    1 + (row.children || []).reduce((total, child) => total + countRows(child), 0)
+  );
 
-  const renderRow = (row: EbisRow): React.ReactNode[] => [
-    <tr key={`${row.level}-${row.name}`} className={row.level === 'regional' ? 'bg-amber-50' : 'bg-white'}>
-      {row.level === 'regional' ? (
-        <>
-          <td className={`border border-slate-200 px-2 py-1 text-left ${getRowTextClass(row.level)}`}>
-            {row.children?.length ? (
-              <button
-                type="button"
-                onClick={() => toggleRow(row)}
-                className="mr-1 inline-flex h-4 w-4 items-center justify-center font-bold text-violet-600 hover:text-violet-800"
-                aria-label={`${isRowExpanded(row) ? 'Collapse' : 'Expand'} ${row.name}`}
-              >
-                {isRowExpanded(row) ? '−' : '+'}
-              </button>
-            ) : null}
-            {row.name}
-          </td>
-          <td className="border border-slate-200 px-2 py-1" />
-        </>
-      ) : (
-        <>
-          <td className="border border-slate-200 px-2 py-1" />
-          <td className={`border border-slate-200 px-2 py-1 text-left ${getRowTextClass(row.level)}`}>
-            <span style={{ paddingLeft: `${row.level === 'district' ? 0 : row.level === 'hsa' ? 18 : 36}px` }}>
-              {row.children?.length ? (
-                <button
-                  type="button"
-                  onClick={() => toggleRow(row)}
-                  className="mr-1 inline-flex h-4 w-4 items-center justify-center font-bold text-violet-600 hover:text-violet-800"
-                  aria-label={`${isRowExpanded(row) ? 'Collapse' : 'Expand'} ${row.name}`}
-                >
-                  {isRowExpanded(row) ? '−' : '+'}
-                </button>
-              ) : (
-                <span className="mr-1 inline-block w-4" />
-              )}
-              {row.name}
-            </span>
-          </td>
-        </>
-      )}
-      {renderCounts(row.counts, row.level === 'regional' ? 'font-bold text-blue-500' : 'text-blue-500')}
-      <td className={`border border-slate-200 px-2 py-1 text-center ${row.level === 'regional' ? 'font-bold' : ''} text-blue-500`}>{getTotal(row.counts)}</td>
+  const renderDetailRow = (row: EbisRow, regionalCell?: React.ReactNode): React.ReactNode[] => [
+    <tr key={`${row.level}-${row.name}`} className="bg-white">
+      {regionalCell}
+      <td className={`border border-slate-200 px-2 py-1 text-left ${getRowTextClass(row.level)}`}>
+        <span style={{ paddingLeft: `${row.level === 'district' ? 0 : row.level === 'hsa' ? 18 : 36}px` }}>
+          {row.name}
+        </span>
+      </td>
+      {renderCounts(row.counts, 'text-blue-500')}
+      <td className="border border-slate-200 px-2 py-1 text-center text-blue-500">{getTotal(row.counts)}</td>
     </tr>,
-    ...(isRowExpanded(row)
-      ? (row.children?.flatMap((child) => renderRow(child)) || [])
-      : []),
+    ...(row.children?.flatMap((child) => renderDetailRow(child)) || []),
   ];
+
+  const renderRegionalRows = (regional: EbisRow): React.ReactNode[] => {
+    const children = regional.children || [];
+    const regionalRowSpan = children.reduce((total, child) => total + countRows(child), 0) + 1;
+    const regionalCell = (
+      <td
+        key={`regional-${regional.name}`}
+        rowSpan={regionalRowSpan}
+        className="border border-slate-200 bg-blue-50 px-2 py-1 text-left align-middle font-bold text-slate-800"
+      >
+        {regional.name}
+      </td>
+    );
+    const visibleRows = children.flatMap((child, index) => renderDetailRow(child, index === 0 ? regionalCell : undefined));
+
+    return [
+      ...visibleRows,
+      <tr key={`subtotal-${regional.name}`} className="bg-blue-100 font-bold text-slate-800">
+        <td className="border border-slate-200 px-2 py-1 text-left">SUB TOTAL</td>
+        {renderCounts(regional.counts, 'text-blue-700')}
+        <td className="border border-slate-200 px-2 py-1 text-center text-blue-700">{getTotal(regional.counts)}</td>
+      </tr>,
+    ];
+  };
 
   const uploadControl = (
     <label className="cursor-pointer rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700">
@@ -412,7 +387,7 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
             </tr>
           </thead>
           <tbody>
-            {rows.regionalRows.flatMap((row) => renderRow(row))}
+            {rows.regionalRows.flatMap((row) => renderRegionalRows(row))}
           </tbody>
           <tfoot>
             <tr className="bg-slate-800 font-bold text-white">

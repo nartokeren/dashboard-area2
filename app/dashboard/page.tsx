@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type ComponentProps, type ReactElement } from 'react';
 import * as XLSX from 'xlsx';
 import { format, startOfMonth, isBefore, isAfter } from 'date-fns';
 import { FaBars, FaTimes } from 'react-icons/fa';
@@ -278,6 +278,27 @@ export default function DashboardPage() {
     exportToPNG,
   }), [currentKey, dataPerCategory, filteredDataPerCategory, dateFrom, dateTo]);
 
+  const isIndihomeAOActive = activeMenu !== 'executive-review' && activeSubSubMenu === 'indihome-ao';
+  const [indihomeAOReport, setIndihomeAOReport] = useState<ReactElement<ComponentProps<typeof TabelAOIndihome>> | null>(null);
+
+  useEffect(() => {
+    if (!isIndihomeAOActive) return;
+
+    setIndihomeAOReport((previousReport) => {
+      const previousProps = previousReport?.props;
+      if (
+        previousProps?.data === commonProps.data &&
+        previousProps?.filteredData === commonProps.filteredData &&
+        previousProps?.dateFrom === commonProps.dateFrom &&
+        previousProps?.dateTo === commonProps.dateTo
+      ) {
+        return previousReport;
+      }
+
+      return <TabelAOIndihome {...commonProps} />;
+    });
+  }, [commonProps, isIndihomeAOActive]);
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       {isSidebarOpen && (
@@ -329,8 +350,10 @@ export default function DashboardPage() {
             <TabelKosong title="Executive Review" />
           )}
 
-          {activeSubSubMenu === 'indihome-ao' && (
-            <TabelAOIndihome {...commonProps} />
+          {(isIndihomeAOActive || indihomeAOReport) && (
+            <div hidden={!isIndihomeAOActive}>
+              {indihomeAOReport || <TabelAOIndihome {...commonProps} />}
+            </div>
           )}
 
           {activeSubSubMenu === 'indihome-pda' && (
