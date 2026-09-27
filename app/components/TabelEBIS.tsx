@@ -269,10 +269,10 @@ export default function TabelEBIS({ filteredData, title, handleFileUpload }: Tab
       const dataUrl = await domtoimage.toPng(tableSection, {
         quality: 1,
         bgcolor: '#ffffff',
-        width: tableSection.scrollWidth,
-        height: tableSection.scrollHeight,
+        width: tableSection.scrollWidth * 2,
+        height: tableSection.scrollHeight * 2,
         style: {
-          transform: 'scale(1)',
+          transform: 'scale(2)',
           transformOrigin: 'top left',
           overflow: 'visible',
           width: `${tableSection.scrollWidth}px`,

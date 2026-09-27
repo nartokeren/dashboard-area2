@@ -10,6 +10,7 @@ import {
   BarElement,
   LineElement,
   PointElement,
+  Filler,
   Title,
   Tooltip,
   Legend,
@@ -25,6 +26,7 @@ ChartJS.register(
   BarElement,
   LineElement,
   PointElement,
+  Filler,
   Title,
   Tooltip,
   Legend
@@ -166,10 +168,10 @@ export default function TabelPDAIndihome({
       const dataUrl = await domtoimage.toPng(element, {
         quality: 1,
         bgcolor: '#ffffff',
-        width: element.scrollWidth,
-        height: element.scrollHeight,
+        width: element.scrollWidth * 2,
+        height: element.scrollHeight * 2,
         style: {
-          transform: 'scale(1)',
+          transform: 'scale(2)',
           transformOrigin: 'top left',
           overflow: 'visible',
           minWidth: 'max-content',
@@ -739,22 +741,22 @@ export default function TabelPDAIndihome({
                               {
                                 label: 'RE',
                                 data: dailyData.map((item) => item.re),
-                                backgroundColor: 'rgba(69, 142, 152, 0.68)',
+                                backgroundColor: 'rgba(37, 99, 235, 0.8)',
                               },
                               {
                                 label: 'PS',
                                 data: dailyData.map((item) => item.ps),
-                                backgroundColor: 'rgba(74, 137, 96, 0.68)',
+                                backgroundColor: 'rgba(22, 163, 74, 0.8)',
                               },
                             ],
                           }}
                           options={{
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 8 } } } },
+                            plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 } } } },
                             scales: {
-                              y: { beginAtZero: true, ticks: { font: { size: 8 } } },
-                              x: { ticks: { maxRotation: 45, font: { size: 8 } } },
+                              y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                              x: { ticks: { maxRotation: 45, font: { size: 10 } } },
                             },
                           }}
                         />
@@ -771,8 +773,8 @@ export default function TabelPDAIndihome({
                               {
                                 label: 'PS/RE %',
                                 data: dailyData.map((item) => item.psRePercent),
-                                borderColor: 'rgb(167, 94, 91)',
-                                backgroundColor: 'rgba(167, 94, 91, 0.12)',
+                                borderColor: 'rgb(220, 38, 38)',
+                                backgroundColor: 'rgba(220, 38, 38, 0.12)',
                                 borderWidth: 2,
                                 pointRadius: 3,
                                 tension: 0.3,
@@ -783,10 +785,10 @@ export default function TabelPDAIndihome({
                           options={{
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 8 } } } },
+                            plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 } } } },
                             scales: {
-                              y: { beginAtZero: true, max: 100, ticks: { callback: (value) => value + '%', font: { size: 8 } } },
-                              x: { ticks: { maxRotation: 45, font: { size: 8 } } },
+                              y: { beginAtZero: true, max: 100, ticks: { callback: (value) => value + '%', font: { size: 10 } } },
+                              x: { ticks: { maxRotation: 45, font: { size: 10 } } },
                             },
                             layout: { padding: { bottom: 20 } },
                           }}

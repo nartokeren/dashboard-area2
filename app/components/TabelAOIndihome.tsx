@@ -116,10 +116,10 @@ export default function TabelAOIndihome({
       const dataUrl = await domtoimage.toPng(element, {
         quality: 1,
         bgcolor: '#ffffff',
-        width: element.scrollWidth,
-        height: element.scrollHeight,
+        width: element.scrollWidth * 2,
+        height: element.scrollHeight * 2,
         style: {
-          transform: 'scale(1)',
+          transform: 'scale(2)',
           transformOrigin: 'top left',
           overflow: 'visible',
           minWidth: 'max-content',

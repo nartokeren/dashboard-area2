@@ -240,10 +240,10 @@ export default function DashboardPage() {
       const dataUrl = await domtoimage.toPng(tableContainer, {
         quality: 1,
         bgcolor: '#ffffff',
-        width: tableContainer.scrollWidth,
-        height: tableContainer.scrollHeight,
+        width: tableContainer.scrollWidth * 2,
+        height: tableContainer.scrollHeight * 2,
         style: {
-          transform: 'scale(1)',
+          transform: 'scale(2)',
           transformOrigin: 'top left',
           overflow: 'visible',
         },

@@ -183,30 +183,30 @@ export default function TabelFulfillment({
         table { 
           width: 100%; 
           border-collapse: collapse; 
-          font-family: var(--font-geist-sans), sans-serif; 
+          font-family: var(--font-ibm-plex-sans), sans-serif;
           font-size: 12px;
         }
         thead { 
-          background-color: #1c2c41; 
+          background-color: #102b49;
           color: #ffffff; 
         }
         th { 
-          border: 1px solid #3d4e63; 
+          border: 1px solid #28527e;
           padding: 10px; 
           text-align: left; 
           font-weight: bold; 
           font-size: 13px;
           color: #ffffff;
-          background-color: #1c2c41;
+          background-color: #102b49;
         }
         td { 
-          border: 1px solid #dce4ec; 
+          border: 1px solid #c8d9ea;
           padding: 10px; 
           font-size: 12px;
-          color: #304155;
+          color: #28527e;
         }
         tbody tr:nth-child(odd) { 
-          background-color: #f6f8fb; 
+          background-color: #f1f7ff;
         }
         tbody tr:nth-child(even) { 
           background-color: #ffffff; 
