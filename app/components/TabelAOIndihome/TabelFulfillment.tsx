@@ -2,6 +2,13 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { startOfDay, endOfDay, isBefore, isAfter, isSameDay, isSameMonth } from 'date-fns';
+import { stoMapping } from '@/constants/stoMapping';
+
+const manjaCategoryOrder = ['MANJA EXP', 'MANJA HI', 'MANJA H+', 'NON MANJA'];
+const getManjaCountStyle = (value: number, activeColor: string): React.CSSProperties => ({
+  color: value === 0 ? '#15803d' : activeColor,
+  fontWeight: 700,
+});
 
 interface TabelFulfillmentProps {
   filteredData: any[];
@@ -70,7 +77,8 @@ export default function TabelFulfillment({
     dateFiltered.forEach((row: any) => {
       const regional = regionalMapping[row['DISTRICT_TIF']] || 'LAINNYA';
       const branch = row['DISTRICT_TIF'] || 'UNKNOWN';
-      const serviceArea = row['STO'] || 'UNKNOWN';
+      const sto = String(row['STO'] || '').trim().toUpperCase();
+      const serviceArea = stoMapping[sto]?.serviceArea || 'UNKNOWN';
       const kategori = getKategoriManja(row);
 
       if (!regionalMap.has(regional)) {
@@ -185,6 +193,7 @@ export default function TabelFulfillment({
           border-collapse: collapse; 
           font-family: var(--font-ibm-plex-sans), sans-serif;
           font-size: 12px;
+          background: #ffffff;
         }
         thead { 
           background-color: #102b49;
@@ -201,15 +210,25 @@ export default function TabelFulfillment({
         }
         td { 
           border: 1px solid #c8d9ea;
-          padding: 10px; 
+          padding: 11px 12px;
           font-size: 12px;
           color: #28527e;
         }
-        tbody tr:nth-child(odd) { 
-          background-color: #f1f7ff;
+        tbody tr[data-summary-level="regional"] {
+          background-color: #e8f0f8;
         }
-        tbody tr:nth-child(even) { 
-          background-color: #ffffff; 
+        tbody tr[data-summary-level="branch"] {
+          background-color: #f5f8fc;
+        }
+        tbody tr[data-summary-level="service-area"] {
+          background-color: #ffffff;
+        }
+        tbody tr[data-summary-level="regional"] td:first-child {
+          color: #102b49;
+          font-weight: bold;
+        }
+        tbody tr[data-summary-level="service-area"] td:first-child {
+          padding-left: 28px;
         }
       `;
 
@@ -218,14 +237,41 @@ export default function TabelFulfillment({
       tempContainer.style.left = '-9999px';
       tempContainer.style.top = '-9999px';
       tempContainer.style.background = 'white';
-      tempContainer.style.padding = '20px';
-      tempContainer.style.width = '800px';
+      tempContainer.style.padding = '28px';
+      tempContainer.style.width = '1000px';
+      tempContainer.style.border = '1px solid #d7e2ed';
+      tempContainer.style.borderRadius = '12px';
+
+      const exportHeading = document.createElement('div');
+      exportHeading.style.marginBottom = '18px';
+      exportHeading.style.paddingBottom = '14px';
+      exportHeading.style.borderBottom = '2px solid #d7e2ed';
+      exportHeading.style.fontFamily = 'var(--font-ibm-plex-sans), sans-serif';
+
+      const exportTitle = document.createElement('div');
+      exportTitle.textContent = modalTitle;
+      exportTitle.style.color = '#102b49';
+      exportTitle.style.fontSize = '20px';
+      exportTitle.style.fontWeight = '700';
+
+      const exportTimestamp = document.createElement('div');
+      exportTimestamp.textContent = new Date().toLocaleString('id-ID', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+      });
+      exportTimestamp.style.marginTop = '4px';
+      exportTimestamp.style.color = '#64748b';
+      exportTimestamp.style.fontSize = '12px';
+
+      exportHeading.append(exportTitle, exportTimestamp);
+      clonedTable.removeAttribute('class');
       
       clonedTable.querySelectorAll('*').forEach((el) => {
         el.removeAttribute('class');
       });
       
       tempContainer.appendChild(styleSheet);
+      tempContainer.appendChild(exportHeading);
       tempContainer.appendChild(clonedTable);
       document.body.appendChild(tempContainer);
 
@@ -310,12 +356,22 @@ export default function TabelFulfillment({
 
     let branchFiltered = dateFiltered.filter((row: any) => row['DISTRICT_TIF'] === branchName);
 
-    const detailData = branchFiltered.map((row: any) => ({
-      BRANCH: row['DISTRICT_TIF'] || '-',
-      STO: row['STO'] || '-',
-      WONUM: row['WONUM'] || '-',
-      KATEGORI_MANJA: getKategoriManja(row),
-    }));
+    const detailData = branchFiltered
+      .map((row: any) => {
+        const sto = String(row['STO'] || '').trim().toUpperCase();
+        return {
+          BRANCH: row['DISTRICT_TIF'] || '-',
+          SERVICE_AREA: stoMapping[sto]?.serviceArea || '-',
+          WONUM: row['WONUM'] || '-',
+          KATEGORI_MANJA: getKategoriManja(row),
+        };
+      })
+      .sort((first, second) => {
+        const firstIndex = manjaCategoryOrder.indexOf(String(first.KATEGORI_MANJA).trim().toUpperCase());
+        const secondIndex = manjaCategoryOrder.indexOf(String(second.KATEGORI_MANJA).trim().toUpperCase());
+        return (firstIndex < 0 ? manjaCategoryOrder.length : firstIndex) -
+          (secondIndex < 0 ? manjaCategoryOrder.length : secondIndex);
+      });
 
     setModalData(detailData);
     setModalTitle(`Detail ORDER PI - ${branchName}`);
@@ -878,7 +934,7 @@ export default function TabelFulfillment({
                   <thead>
                     <tr className="bg-slate-700 text-white">
                       <th className="border border-slate-500 p-2 text-left font-bold">BRANCH</th>
-                      <th className="border border-slate-500 p-2 text-left font-bold">STO</th>
+                      <th className="border border-slate-500 p-2 text-left font-bold">SERVICE AREA</th>
                       <th className="border border-slate-500 p-2 text-left font-bold">WONUM</th>
                       <th className="border border-slate-500 p-2 text-left font-bold">KATEGORI MANJA</th>
                     </tr>
@@ -888,7 +944,7 @@ export default function TabelFulfillment({
                       modalData.map((row: any, idx: number) => (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-slate-50 hover:bg-blue-50'} style={{ transition: 'background-color 0.2s ease' }}>
                           <td className="border border-slate-300 p-2 text-black">{row.BRANCH}</td>
-                          <td className="border border-slate-300 p-2 text-black">{row.STO}</td>
+                          <td className="border border-slate-300 p-2 text-black">{row.SERVICE_AREA}</td>
                           <td className="border border-slate-300 p-2 font-mono text-black">{row.WONUM}</td>
                           <td className="border border-slate-300 p-2 text-black">{row.KATEGORI_MANJA}</td>
                         </tr>
@@ -918,7 +974,7 @@ export default function TabelFulfillment({
                   <tbody>
                     {modalData.map((regional: any) => (
                       <React.Fragment key={regional.regional}>
-                        <tr className="bg-slate-100 hover:bg-slate-200">
+                        <tr data-summary-level="regional" className="bg-slate-100 hover:bg-slate-200">
                           <td className="border border-slate-400 p-2 font-bold text-black">
                             <span
                               onClick={() => toggleExpandRow(regional.regional)}
@@ -927,16 +983,16 @@ export default function TabelFulfillment({
                               {expandedRows.has(regional.regional) ? '▼' : '▶'} {regional.regional}
                             </span>
                           </td>
-                          <td className="border border-slate-400 p-2 text-center font-bold text-black">
+                          <td className="border border-slate-400 p-2 text-center font-bold" style={getManjaCountStyle(regional.manjaExp, '#dc2626')}>
                             {regional.manjaExp}
                           </td>
-                          <td className="border border-slate-400 p-2 text-center font-bold text-black">
+                          <td className="border border-slate-400 p-2 text-center font-bold" style={getManjaCountStyle(regional.manjaHI, '#dc2626')}>
                             {regional.manjaHI}
                           </td>
-                          <td className="border border-slate-400 p-2 text-center font-bold text-black">
+                          <td className="border border-slate-400 p-2 text-center font-bold" style={getManjaCountStyle(regional.manjaHPlus, '#ca8a04')}>
                             {regional.manjaHPlus}
                           </td>
-                          <td className="border border-slate-400 p-2 text-center font-bold text-black">
+                          <td className="border border-slate-400 p-2 text-center font-bold" style={getManjaCountStyle(regional.nonManja, '#ca8a04')}>
                             {regional.nonManja}
                           </td>
                         </tr>
@@ -944,7 +1000,7 @@ export default function TabelFulfillment({
                         {expandedRows.has(regional.regional) &&
                           regional.branches.map((branch: any) => (
                             <React.Fragment key={`${regional.regional}-${branch.branch}`}>
-                              <tr className="bg-slate-50 hover:bg-blue-50">
+                              <tr data-summary-level="branch" className="bg-slate-50 hover:bg-blue-50">
                                 <td className="border border-slate-300 p-2 pl-6 text-black">
                                   <span
                                     onClick={() => toggleExpandRow(`${regional.regional}-${branch.branch}`)}
@@ -953,36 +1009,36 @@ export default function TabelFulfillment({
                                     {expandedRows.has(`${regional.regional}-${branch.branch}`) ? '▼' : '▶'} {branch.branch}
                                   </span>
                                 </td>
-                                <td className="border border-slate-300 p-2 text-center text-black">
+                                <td className="border border-slate-300 p-2 text-center" style={getManjaCountStyle(branch.manjaExp, '#dc2626')}>
                                   {branch.manjaExp}
                                 </td>
-                                <td className="border border-slate-300 p-2 text-center text-black">
+                                <td className="border border-slate-300 p-2 text-center" style={getManjaCountStyle(branch.manjaHI, '#dc2626')}>
                                   {branch.manjaHI}
                                 </td>
-                                <td className="border border-slate-300 p-2 text-center text-black">
+                                <td className="border border-slate-300 p-2 text-center" style={getManjaCountStyle(branch.manjaHPlus, '#ca8a04')}>
                                   {branch.manjaHPlus}
                                 </td>
-                                <td className="border border-slate-300 p-2 text-center text-black">
+                                <td className="border border-slate-300 p-2 text-center" style={getManjaCountStyle(branch.nonManja, '#ca8a04')}>
                                   {branch.nonManja}
                                 </td>
                               </tr>
 
                               {expandedRows.has(`${regional.regional}-${branch.branch}`) &&
                                 branch.serviceAreas.map((sto: any) => (
-                                  <tr key={`${regional.regional}-${branch.branch}-${sto.serviceArea}`} className="bg-white hover:bg-blue-50">
+                                  <tr data-summary-level="service-area" key={`${regional.regional}-${branch.branch}-${sto.serviceArea}`} className="bg-white hover:bg-blue-50">
                                     <td className="border border-slate-300 p-2 pl-12 text-black">
                                       {sto.serviceArea}
                                     </td>
-                                    <td className="border border-slate-300 p-2 text-center text-black">
+                                    <td className="border border-slate-300 p-2 text-center" style={getManjaCountStyle(sto.manjaExp, '#dc2626')}>
                                       {sto.manjaExp}
                                     </td>
-                                    <td className="border border-slate-300 p-2 text-center text-black">
+                                    <td className="border border-slate-300 p-2 text-center" style={getManjaCountStyle(sto.manjaHI, '#dc2626')}>
                                       {sto.manjaHI}
                                     </td>
-                                    <td className="border border-slate-300 p-2 text-center text-black">
+                                    <td className="border border-slate-300 p-2 text-center" style={getManjaCountStyle(sto.manjaHPlus, '#ca8a04')}>
                                       {sto.manjaHPlus}
                                     </td>
-                                    <td className="border border-slate-300 p-2 text-center text-black">
+                                    <td className="border border-slate-300 p-2 text-center" style={getManjaCountStyle(sto.nonManja, '#ca8a04')}>
                                       {sto.nonManja}
                                     </td>
                                   </tr>
