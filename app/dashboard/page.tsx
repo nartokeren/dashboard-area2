@@ -7,6 +7,7 @@ import { FaBars, FaTimes } from 'react-icons/fa';
 
 // ✅ IMPORT DARI CONSTANTS
 import { regionalMapping, targetMapping } from '@/constants';
+import { stoMapping } from '@/constants/stoMapping';
 // ✅ IMPORT DARI UTILS
 import { parseDate } from '@/utils/date';
 
@@ -150,29 +151,34 @@ export default function DashboardPage() {
           : null;
       };
 
-      const rawData = json.map((row: any) => ({
-        WONUM: String(getColumn(row, ['WONUM']) || ''),
-        WORKORDER: String(getColumn(row, ['WORKORDER']) || ''),
-        NoOrder: String(getColumn(row, ['NO ORDER', 'NO_ORDER', 'WONUM']) || ''),
-        SCOrderId: String(getColumn(row, ['SC ORDER NO/TRACK ID/CSRM NO']) || ''),
-        SCID: String(getColumn(row, ['SC', 'SCID', 'NO ORDER', 'NO_ORDER']) || ''),
-        STATUS: String(getColumn(row, ['STATUS']) || ''),
-        DATECREATED: getColumn(row, ['DATECREATED', 'DATE_CREATED']),
-        STATUSDATE: getColumn(row, ['STATUSDATE']),
-        Description: String(getColumn(row, ['DESCRIPTION', 'Description']) || ''),
-        TTDC: getColumn(row, ['TTDC', 'DURASI TTDC']),
-        Regional: String(getColumn(row, ['REGIONAL', 'REGION']) || ''),
-        District: String(getColumn(row, ['DISTRICT', 'DISTRICT_TIF']) || ''),
-        Branch: String(getColumn(row, ['BRANCH', 'DISTRICT', 'DISTRICT_TIF']) || ''),
-        DISTRICT_TIF: String(getColumn(row, ['DISTRICT_TIF', 'DISTRICT']) || ''),
-        HSA: String(getColumn(row, ['HSA']) || ''),
-        Sisa: String(getColumn(row, ['SISA', 'SISA TTDC', 'SISA_TTDC']) || ''),
-        TGL_MANJA: getColumn(row, ['TGL_MANJA']),
-        ERRORCODE_AKHIR: String(getColumn(row, ['ERRORCODE_AKHIR']) || ''),
-        SUBERRORCODE_AKHIR: String(getColumn(row, ['SUBERRORCODE_AKHIR']) || ''),
-        WORKZONE: isEbisUpload ? String(getColumn(row, ['WORKZONE', 'STO']) || '') : '',
-        STO: String(getColumn(row, isEbisUpload ? ['WORKZONE', 'STO'] : ['STO']) || ''),
-      }));
+      const rawData = json.map((row: any) => {
+        const sto = String(getColumn(row, isEbisUpload ? ['STO', 'WORKZONE'] : ['STO']) || '').trim();
+        const mappedLocation = isEbisUpload ? stoMapping[sto.toUpperCase()] : undefined;
+
+        return {
+          WONUM: String(getColumn(row, ['WONUM']) || ''),
+          WORKORDER: String(getColumn(row, ['WORKORDER']) || ''),
+          NoOrder: String(getColumn(row, ['NO ORDER', 'NO_ORDER', 'WONUM']) || ''),
+          SCOrderId: String(getColumn(row, ['SC ORDER NO/TRACK ID/CSRM NO']) || ''),
+          SCID: String(getColumn(row, ['SC', 'SCID', 'NO ORDER', 'NO_ORDER']) || ''),
+          STATUS: String(getColumn(row, ['STATUS']) || ''),
+          DATECREATED: getColumn(row, ['DATECREATED', 'DATE_CREATED']),
+          STATUSDATE: getColumn(row, ['STATUSDATE']),
+          Description: String(getColumn(row, ['DESCRIPTION', 'Description']) || ''),
+          TTDC: getColumn(row, ['TTDC', 'DURASI TTDC']),
+          Regional: mappedLocation?.regional || (isEbisUpload ? '' : String(getColumn(row, ['REGIONAL', 'REGION']) || '')),
+          District: mappedLocation?.branch || (isEbisUpload ? '' : String(getColumn(row, ['DISTRICT', 'DISTRICT_TIF']) || '')),
+          Branch: mappedLocation?.branch || (isEbisUpload ? '' : String(getColumn(row, ['BRANCH', 'DISTRICT', 'DISTRICT_TIF']) || '')),
+          DISTRICT_TIF: mappedLocation?.branch || (isEbisUpload ? '' : String(getColumn(row, ['DISTRICT_TIF', 'DISTRICT']) || '')),
+          HSA: String(getColumn(row, ['HSA']) || ''),
+          Sisa: String(getColumn(row, ['SISA', 'SISA TTDC', 'SISA_TTDC']) || ''),
+          TGL_MANJA: getColumn(row, ['TGL_MANJA']),
+          ERRORCODE_AKHIR: String(getColumn(row, ['ERRORCODE_AKHIR']) || ''),
+          SUBERRORCODE_AKHIR: String(getColumn(row, ['SUBERRORCODE_AKHIR']) || ''),
+          WORKZONE: isEbisUpload ? sto : '',
+          STO: sto,
+        };
+      });
 
       console.log('📊 TOTAL DATA DARI EXCEL:', json.length);
       console.log('📊 DATA TERUPLOAD:', rawData.length);

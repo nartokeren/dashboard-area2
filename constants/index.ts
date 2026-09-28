@@ -1,19 +1,11 @@
 // ============================================
 // REGIONAL MAPPING
 // ============================================
-export const regionalMapping: { [key: string]: string } = {
-  'SERANG': 'BANTEN',
-  'TANGERANG': 'BANTEN',
-  'BEKASI': 'EASTERN JABOTABEK',
-  'BOGOR': 'EASTERN JABOTABEK',
-  'KARAWANG': 'EASTERN JABOTABEK',
-  'NORTHERN JAKARTA': 'JAKARTA',
-  'SOUTHERN JAKARTA': 'JAKARTA',
-  'BANDUNG': 'JAWA BARAT',
-  'CIREBON': 'JAWA BARAT',
-  'SOREANG': 'JAWA BARAT',
-  'TASIKMALAYA': 'JAWA BARAT',
-};
+import { stoMapping } from './stoMapping';
+
+export const regionalMapping: { [key: string]: string } = Object.fromEntries(
+  Object.values(stoMapping).map(({ branch, regional }) => [branch, regional])
+);
 
 // ============================================
 // TARGET PER BRANCH (2.3K Fulfillment)
