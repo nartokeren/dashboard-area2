@@ -1,27 +1,17 @@
+import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
+import { addMappingColumns } from '@/constants/stoMapping';
 
-// ============================================
-// DOWNLOAD CSV
-// ============================================
-export const downloadCSV = (data: any[], fileName: string) => {
+export const downloadMappedExcel = (data: Record<string, unknown>[], fileName: string) => {
   if (data.length === 0) {
-    alert('⚠️ Tidak ada data untuk di-download!');
+    alert('Tidak ada data upload untuk di-download.');
     return;
   }
-  
-  const headers = Object.keys(data[0]);
-  const csvRows = [headers.join(',')];
-  
-  for (const row of data) {
-    const values = headers.map(h => `"${row[h] || ''}"`);
-    csvRows.push(values.join(','));
-  }
-  
-  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `${fileName}_${format(new Date(), 'yyyyMMdd')}.csv`;
-  link.click();
+
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(addMappingColumns(data));
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Upload');
+  XLSX.writeFile(workbook, `${fileName}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
 };
 
 // ============================================

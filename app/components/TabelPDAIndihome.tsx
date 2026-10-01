@@ -85,54 +85,6 @@ export default function TabelPDAIndihome({
   }, []);
 
   // ============================================
-  // FUNGSI DOWNLOAD CSV
-  // ============================================
-  const downloadData = (data: any[], label: string) => {
-    if (data.length === 0) {
-      alert(`⚠️ Tidak ada data untuk ${label}`);
-      return;
-    }
-    const headers = Object.keys(data[0]);
-    const csvRows = [headers.join(',')];
-    for (const row of data) {
-      const values = headers.map(h => `"${row[h] || ''}"`);
-      csvRows.push(values.join(','));
-    }
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${label}_${format(new Date(), 'yyyyMMdd')}.csv`;
-    link.click();
-  };
-
-  // ============================================
-  // FUNGSI GET DATA PER METRIC (UNTUK DOWNLOAD)
-  // ============================================
-  const getDataForMetric = (type: string) => {
-    switch (type) {
-      case 'RE': return safeFilteredData;
-      case 'PS': return safeFilteredData.filter((row: any) => row['STATUS'] === 'COMPWORK');
-      case 'CANCEL': return safeFilteredData.filter((row: any) => row['STATUS'] === 'CANCLWORK');
-      case 'KENDALA_TEKNIK':
-        return safeFilteredData.filter(
-          (row: any) =>
-            row['STATUS'] === 'WORKFAIL' &&
-            (row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIK' || row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIS')
-        );
-      case 'KENDALA_PELANGGAN':
-        return safeFilteredData.filter(
-          (row: any) => row['STATUS'] === 'WORKFAIL' && row['ERRORCODE_AKHIR'] === 'KENDALA PELANGGAN'
-        );
-      case 'KENDALA_LAINNYA':
-        return safeFilteredData.filter(
-          (row: any) => row['STATUS'] === 'WORKFAIL' && row['ERRORCODE_AKHIR'] === 'KENDALA LAINNYA'
-        );
-      default:
-        return [];
-    }
-  };
-
-  // ============================================
   // EXPORT PNG PER SECTION
   // ============================================
   const exportSection = async (elementId: string, fileName: string) => {
@@ -661,15 +613,6 @@ export default function TabelPDAIndihome({
               <p className="text-[10px] text-slate-500 font-semibold">{item.label}</p>
               <p className={`text-lg font-bold text-${item.color}-600`}>{item.val.toLocaleString()}</p>
               <p className="text-[8px] text-slate-400">{item.sub}</p>
-              <button
-                onClick={() => {
-                  const d = getDataForMetric(item.key);
-                  downloadData(d, item.key);
-                }}
-                className={`absolute top-1 right-1 text-[10px] bg-${item.color}-100 hover:bg-${item.color}-200 text-${item.color}-700 px-1.5 py-0.5 rounded`}
-              >
-                📥
-              </button>
             </div>
           ))}
           <div

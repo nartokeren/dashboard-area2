@@ -15,8 +15,6 @@ interface FilterAndCardsProps {
   processData: () => void;
   filteredData: any[];
   result: any;
-  getDataForMetric: (type: string) => any[];
-  downloadData: (data: any[], label: string) => void;
 }
 
 export default function FilterAndCards({
@@ -32,8 +30,6 @@ export default function FilterAndCards({
   processData,
   filteredData,
   result,
-  getDataForMetric,
-  downloadData,
 }: FilterAndCardsProps) {
   return (
     <>
@@ -79,7 +75,6 @@ export default function FilterAndCards({
               <p className="text-[10px] text-slate-500 font-semibold">{item.label}</p>
               <p className={`text-lg font-bold text-${item.color}-600`}>{item.val.toLocaleString()}</p>
               <p className="text-[8px] text-slate-400">{item.sub}</p>
-              <button onClick={() => { const d = getDataForMetric(item.key); downloadData(d, item.key); }} className={`absolute top-1 right-1 text-[10px] bg-${item.bg} hover:bg-${item.color}-200 text-${item.text} px-1.5 py-0.5 rounded`}>📥</button>
             </div>
           ))}
           <div className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm border-l-4 ${result.psRePercent >= 85 ? 'border-green-500' : 'border-yellow-500'}`}>

@@ -34,7 +34,7 @@ const mappingRows = [
   ['DRAMAGA', 'BOGOR', 'EASTERN JABOTABEK', 'CGD,DMG,JSA,LBI,LWL'],
   ['KEDUNGHALANG', 'BOGOR', 'EASTERN JABOTABEK', 'KHL'],
   ['PAGELARAN', 'BOGOR', 'EASTERN JABOTABEK', 'CPS,PAG'],
-  ['SEMPLAK', 'BOGOR', 'EASTERN JABOTABEK', 'CSE,PAR,SPL,PPG'],
+  ['SEMPLAK', 'BOGOR', 'EASTERN JABOTABEK', 'CSE,PAR,SPL'],
   ['SENTUL', 'BOGOR', 'EASTERN JABOTABEK', 'CTR,PMU,STL'],
   ['CINERE', 'BEKASI', 'EASTERN JABOTABEK', 'CNE,PCM'],
   ['RAWAGENI', 'BEKASI', 'EASTERN JABOTABEK', 'DEP'],
@@ -85,9 +85,9 @@ const mappingRows = [
   ['CIBADAK', 'BOGOR', 'EASTERN JABOTABEK', 'BGL,CBD,CCR,CKB,JPK,KLU,PLR'],
   ['SUKABUMI', 'BOGOR', 'EASTERN JABOTABEK', 'CMO,NLD,SGN,SKB'],
   ['SERPONG', 'TANGERANG', 'BANTEN', 'RMP,SRP'],
-  ['LEGOK', 'SERANG', 'BANTEN', 'LGK'],
+  ['LEGOK', 'SERANG', 'BANTEN', 'LGK,PPG'],
   ['PARUNG PANJANG', 'SERANG', 'BANTEN', 'CUG'],
-  ['PASAR KEMIS', 'SERANG', 'BANTEN', 'KJO,MUK,PSK,RJG'],
+  ['PASAR KEMIS', 'TANGERANG', 'BANTEN', 'KJO,MUK,PSK,RJG'],
   ['GANDASARI', 'TANGERANG', 'BANTEN', 'SPT,GDS'],
   ['CILEDUG', 'TANGERANG', 'BANTEN', 'CLD'],
   ['CIPONDOH', 'TANGERANG', 'BANTEN', 'CKL,CPD'],
@@ -107,3 +107,31 @@ export const stoMapping: Record<string, { serviceArea: string; branch: string; r
       stoList.split(',').map((sto) => [sto, { serviceArea, branch, regional }])
     )
   );
+
+const normalizeHeader = (header: string) => header.trim().toUpperCase().replace(/\s+/g, '_');
+
+export const getStoCode = (row: Record<string, unknown>) => {
+  const normalizedRow = Object.fromEntries(
+    Object.entries(row).map(([header, value]) => [normalizeHeader(header), value])
+  );
+
+  return [normalizedRow.STO, normalizedRow.WORKZONE]
+    .map((value) => String(value ?? '').trim().toUpperCase())
+    .find((value) => value !== '') || '';
+};
+
+export const addMappingColumns = (rows: Record<string, unknown>[]) => rows.map((row) => {
+  const mapping = stoMapping[getStoCode(row)];
+  const uploadedColumns = Object.fromEntries(
+    Object.entries(row).filter(([header]) =>
+      !['BRANCH', 'REGION', 'SERVICE_AREA'].includes(normalizeHeader(header))
+    )
+  );
+
+  return {
+    BRANCH: mapping?.branch || '',
+    REGION: mapping?.regional || '',
+    'SERVICE AREA': mapping?.serviceArea || '',
+    ...uploadedColumns,
+  };
+});

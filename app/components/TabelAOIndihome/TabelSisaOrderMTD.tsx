@@ -1,30 +1,33 @@
 'use client';
 
 import React from 'react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { endOfDay, format, startOfMonth } from 'date-fns';
 
 interface TabelSisaOrderMTDProps {
-  filteredData: any[];
+  uploadedData: any[];
   parseDate: (value: any) => Date | null;
   exportSection?: (elementId: string, fileName: string) => void;
 }
 
 export default function TabelSisaOrderMTD({
-  filteredData,
+  uploadedData,
   parseDate,
   exportSection,
 }: TabelSisaOrderMTDProps) {
   // ============================================
-  // HITUNG DATA MTD (1 BULAN INI - HARI INI)
+  // HITUNG MTD BERDASARKAN BULAN TERBARU DI FILE UPLOAD
   // ============================================
-  const now = new Date();
-  const startOfMonthDate = startOfMonth(now);
-  const endOfMonthDate = endOfMonth(now);
+  const latestDate = uploadedData.reduce((latest: Date | null, row: any) => {
+    const dateCreated = parseDate(row['DATECREATED']);
+    return dateCreated && (!latest || dateCreated > latest) ? dateCreated : latest;
+  }, null) || new Date();
+  const startOfMonthDate = startOfMonth(latestDate);
+  const endOfPeriodDate = endOfDay(latestDate);
 
-  const mtdData = filteredData.filter((row: any) => {
+  const mtdData = uploadedData.filter((row: any) => {
     const dateCreated = parseDate(row['DATECREATED']);
     if (!dateCreated) return false;
-    return dateCreated >= startOfMonthDate && dateCreated <= endOfMonthDate;
+    return dateCreated >= startOfMonthDate && dateCreated <= endOfPeriodDate;
   });
 
   // ============================================
@@ -132,7 +135,7 @@ export default function TabelSisaOrderMTD({
   const kendalaData = calculateKendalaData(mtdData);
   const { rows: kendalaRows, districts, grandTotalOverall, grandTotalPerDistrict } = kendalaData;
 
-  if (filteredData.length === 0 || kendalaRows.length === 0) {
+  if (uploadedData.length === 0 || kendalaRows.length === 0) {
     return null;
   }
 
@@ -155,7 +158,7 @@ export default function TabelSisaOrderMTD({
         )}
       </div>
       <p className="text-xs text-slate-500 mb-2">
-        Data berdasarkan DATECREATED: {format(startOfMonthDate, 'dd MMMM yyyy')} - {format(endOfMonthDate, 'dd MMMM yyyy')}
+        Data berdasarkan DATECREATED: {format(startOfMonthDate, 'dd MMMM yyyy')} - {format(endOfPeriodDate, 'dd MMMM yyyy')}
       </p>
       <table className="w-full text-[10px] border-collapse mb-2">
         <thead>

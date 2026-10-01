@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo, type ComponentProps, type ReactElement } from 'react';
 import * as XLSX from 'xlsx';
-import { format, startOfMonth, isBefore, isAfter } from 'date-fns';
-import { FaBars, FaTimes } from 'react-icons/fa';
+import { format, startOfMonth, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns';
+import { FaBars, FaDownload, FaTimes } from 'react-icons/fa';
 
 // ✅ IMPORT DARI CONSTANTS
 import { regionalMapping, targetMapping } from '@/constants';
-import { stoMapping } from '@/constants/stoMapping';
+import { getStoCode, stoMapping } from '@/constants/stoMapping';
+import { downloadMappedExcel } from '@/utils/export';
 // ✅ IMPORT DARI UTILS
 import { parseDate } from '@/utils/date';
 
@@ -46,6 +47,10 @@ export default function DashboardPage() {
     return obj;
   });
 
+  const [uploadedRowsPerCategory, setUploadedRowsPerCategory] = useState<Record<string, Record<string, unknown>[]>>(
+    () => Object.fromEntries(categoryKeys.map((key) => [key, []]))
+  );
+
   const [filteredDataPerCategory, setFilteredDataPerCategory] = useState<{
     [key: string]: any[];
   }>(() => {
@@ -60,6 +65,7 @@ export default function DashboardPage() {
   }, []);
 
   const currentKey = activeSubSubMenu || 'indihome-ao';
+  const currentUploadedRows = uploadedRowsPerCategory[currentKey] || [];
 
   const handleMenuSelect = (menuId: string, subMenuId?: string, subSubMenuId?: string) => {
     setActiveMenu(menuId);
@@ -152,8 +158,8 @@ export default function DashboardPage() {
       };
 
       const rawData = json.map((row: any) => {
-        const sto = String(getColumn(row, isEbisUpload ? ['STO', 'WORKZONE'] : ['STO']) || '').trim();
-        const mappedLocation = isEbisUpload ? stoMapping[sto.toUpperCase()] : undefined;
+        const sto = getStoCode(row);
+        const mappedLocation = stoMapping[sto.toUpperCase()];
 
         return {
           WONUM: String(getColumn(row, ['WONUM']) || ''),
@@ -166,10 +172,10 @@ export default function DashboardPage() {
           STATUSDATE: getColumn(row, ['STATUSDATE']),
           Description: String(getColumn(row, ['DESCRIPTION', 'Description']) || ''),
           TTDC: getColumn(row, ['TTDC', 'DURASI TTDC']),
-          Regional: mappedLocation?.regional || (isEbisUpload ? '' : String(getColumn(row, ['REGIONAL', 'REGION']) || '')),
-          District: mappedLocation?.branch || (isEbisUpload ? '' : String(getColumn(row, ['DISTRICT', 'DISTRICT_TIF']) || '')),
-          Branch: mappedLocation?.branch || (isEbisUpload ? '' : String(getColumn(row, ['BRANCH', 'DISTRICT', 'DISTRICT_TIF']) || '')),
-          DISTRICT_TIF: mappedLocation?.branch || (isEbisUpload ? '' : String(getColumn(row, ['DISTRICT_TIF', 'DISTRICT']) || '')),
+          Regional: mappedLocation?.regional || '',
+          District: mappedLocation?.branch || '',
+          Branch: mappedLocation?.branch || '',
+          DISTRICT_TIF: mappedLocation?.branch || '',
           HSA: String(getColumn(row, ['HSA']) || ''),
           Sisa: String(getColumn(row, ['SISA', 'SISA TTDC', 'SISA_TTDC']) || ''),
           TGL_MANJA: getColumn(row, ['TGL_MANJA']),
@@ -182,6 +188,11 @@ export default function DashboardPage() {
 
       console.log('📊 TOTAL DATA DARI EXCEL:', json.length);
       console.log('📊 DATA TERUPLOAD:', rawData.length);
+
+      setUploadedRowsPerCategory((prev) => ({
+        ...prev,
+        [currentKey]: json,
+      }));
 
       setDataPerCategory((prev) => ({
         ...prev,
@@ -208,8 +219,8 @@ export default function DashboardPage() {
       return;
     }
 
-    const fromDate = dateFrom ? new Date(dateFrom) : null;
-    const toDate = dateTo ? new Date(dateTo) : null;
+    const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
+    const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
 
     const filtered = currentData.filter((row) => {
       const dateCreated = parseDate(row['DATECREATED']);
@@ -351,6 +362,19 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {activeMenu === 'daily-report' && currentUploadedRows.length > 0 && (
+            <div className="mb-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => downloadMappedExcel(currentUploadedRows, `Report_${currentKey}`)}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+              >
+                <FaDownload size={14} />
+                Download Excel
+              </button>
+            </div>
+          )}
 
           {activeMenu === 'executive-review' && (
             <TabelKosong title="Executive Review" />

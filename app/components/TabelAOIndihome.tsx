@@ -46,36 +46,6 @@ export default function TabelAOIndihome({
     setStatusDateTo(format(now, 'yyyy-MM-dd'));
   }, []);
 
-  const downloadData = (data: any[], label: string) => {
-    if (data.length === 0) {
-      alert(`⚠️ Tidak ada data untuk ${label}`);
-      return;
-    }
-    const headers = Object.keys(data[0]);
-    const csvRows = [headers.join(',')];
-    for (const row of data) {
-      const values = headers.map(h => `"${row[h]}"`);
-      csvRows.push(values.join(','));
-    }
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${label}_${format(new Date(), 'yyyyMMdd')}.csv`;
-    link.click();
-  };
-
-  const getDataForMetric = (type: string) => {
-    switch(type) {
-      case 'RE': return safeFilteredData;
-      case 'PS': return safeFilteredData.filter((row: any) => row['STATUS'] === 'COMPWORK');
-      case 'CANCEL': return safeFilteredData.filter((row: any) => row['STATUS'] === 'CANCLWORK');
-      case 'KENDALA_TEKNIK': return safeFilteredData.filter((row: any) => row['STATUS'] === 'WORKFAIL' && (row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIK' || row['ERRORCODE_AKHIR'] === 'KENDALA TEKNIS'));
-      case 'KENDALA_PELANGGAN': return safeFilteredData.filter((row: any) => row['STATUS'] === 'WORKFAIL' && row['ERRORCODE_AKHIR'] === 'KENDALA PELANGGAN');
-      case 'KENDALA_LAINNYA': return safeFilteredData.filter((row: any) => row['STATUS'] === 'WORKFAIL' && row['ERRORCODE_AKHIR'] === 'KENDALA LAINNYA');
-      default: return [];
-    }
-  };
-
   const exportSection = async (elementId: string, fileName: string) => {
     try {
       const domtoimage = (await import('dom-to-image')).default;
@@ -211,8 +181,6 @@ export default function TabelAOIndihome({
         processData={processData}
         filteredData={safeFilteredData}
         result={result}
-        getDataForMetric={getDataForMetric}
-        downloadData={downloadData}
       />
 
       <div className="relative mb-6">
@@ -316,7 +284,7 @@ export default function TabelAOIndihome({
         </div>
         <div id="tabel-sisaorder-mtd-content" className="pb-4">
           <TabelSisaOrderMTD
-            filteredData={safeFilteredData}
+            uploadedData={data || []}
             parseDate={parseDate}
           />
         </div>
