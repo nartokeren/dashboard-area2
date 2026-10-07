@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { regionalMapping, regionalOrder } from '@/constants';
+import { stoMapping } from '@/constants/stoMapping';
 import { parseDate } from '@/utils/date';
 
 interface OloCounts {
@@ -41,8 +42,23 @@ interface OloOrder {
   DISTRICT_TIF?: string;
   Regional?: string;
   WORKZONE?: string;
+  STO?: string;
   SCOrderId?: string;
 }
+
+const getOrderLocation = (order: OloOrder) => {
+  const mappedLocation = [order.WORKZONE, order.STO]
+    .map((value) => String(value ?? '').trim().toUpperCase())
+    .map((sto) => stoMapping[sto])
+    .find((location) => location !== undefined);
+  const branch = mappedLocation?.branch ||
+    String(order.Branch || order.District || order.DISTRICT_TIF || 'UNKNOWN').trim().toUpperCase();
+  const regional = mappedLocation?.regional ||
+    regionalMapping[branch] ||
+    String(order.Regional || 'LAINNYA').trim().toUpperCase();
+
+  return { branch, regional };
+};
 
 const isE2EDescription = (description: unknown) => {
   const value = String(description ?? '').toUpperCase();
@@ -120,10 +136,7 @@ export default function TabelEBISOLO({ filteredData, handleFileUpload }: TabelEB
     const grouped = new Map<string, Map<string, OloOrder[]>>();
 
     filteredData.forEach((order) => {
-      const branch = String(order.Branch || order.District || order.DISTRICT_TIF || 'UNKNOWN')
-        .trim()
-        .toUpperCase();
-      const regional = regionalMapping[branch] || String(order.Regional || 'LAINNYA').trim().toUpperCase();
+      const { branch, regional } = getOrderLocation(order);
 
       if (!grouped.has(regional)) grouped.set(regional, new Map());
       const branchGroups = grouped.get(regional)!;
@@ -154,8 +167,8 @@ export default function TabelEBISOLO({ filteredData, handleFileUpload }: TabelEB
   const e2eOrders = filteredData
     .filter((order) => isE2EDescription(order.Description))
     .sort((first, second) => {
-      const firstBranch = String(first.Branch || first.District || first.DISTRICT_TIF || '').toUpperCase();
-      const secondBranch = String(second.Branch || second.District || second.DISTRICT_TIF || '').toUpperCase();
+      const firstBranch = getOrderLocation(first).branch;
+      const secondBranch = getOrderLocation(second).branch;
       return firstBranch.localeCompare(secondBranch) ||
         String(first.WORKZONE || '').localeCompare(String(second.WORKZONE || ''));
     });
@@ -177,7 +190,7 @@ export default function TabelEBISOLO({ filteredData, handleFileUpload }: TabelEB
     'BRANCH TA | WORKZONE | ORDER ID | TASK',
     '',
     ...e2eOrders.map((order) => {
-      const branch = String(order.Branch || order.District || order.DISTRICT_TIF || 'UNKNOWN').trim().toUpperCase();
+      const branch = getOrderLocation(order).branch;
       const workzone = String(order.WORKZONE || '-').trim().toUpperCase();
       const orderId = String(order.SCOrderId || '').split('_')[0] || '-';
       const task = String(order.Description || '-').replace(/\s+/g, ' ').trim();
