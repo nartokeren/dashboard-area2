@@ -39,8 +39,7 @@ const menuData: MenuItem[] = [
         id: 'indibiz',
         label: 'INDIBIZ',
         subSubItems: [
-          { id: 'indibiz-ao', label: 'AO' },
-          { id: 'indibiz-pda', label: 'PDA' },
+          { id: 'indibiz-ao-pda', label: 'AO+PDA' },
         ],
       },
       {

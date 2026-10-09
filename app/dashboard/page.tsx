@@ -18,6 +18,7 @@ import TabelPDAIndihome from '../components/TabelPDAIndihome';
 import TabelEBIS from '../components/TabelEBIS';
 import TabelEBISOLO from '../components/TabelEBISOLO';
 import TabelEBISVULA from '../components/TabelEBISVULA';
+import TabelIndibiz from '../components/TabelIndibiz';
 import TabelKosong from '../components/TabelKosong';
 
 export default function DashboardPage() {
@@ -31,8 +32,7 @@ export default function DashboardPage() {
   const categoryKeys = [
     'indihome-ao',
     'indihome-pda',
-    'indibiz-ao',
-    'indibiz-pda',
+    'indibiz-ao-pda',
     'ebis-datin',
     'ebis-wifi',
     'ebis-olo',
@@ -49,6 +49,9 @@ export default function DashboardPage() {
 
   const [uploadedRowsPerCategory, setUploadedRowsPerCategory] = useState<Record<string, Record<string, unknown>[]>>(
     () => Object.fromEntries(categoryKeys.map((key) => [key, []]))
+  );
+  const [uploadedAtPerCategory, setUploadedAtPerCategory] = useState<Record<string, number>>(
+    () => Object.fromEntries(categoryKeys.map((key) => [key, 0]))
   );
 
   const [filteredDataPerCategory, setFilteredDataPerCategory] = useState<{
@@ -74,7 +77,7 @@ export default function DashboardPage() {
       setActiveSubSubMenu(subSubMenuId);
     } else if (subMenuId) {
       if (subMenuId === 'indihome') setActiveSubSubMenu('indihome-ao');
-      else if (subMenuId === 'indibiz') setActiveSubSubMenu('indibiz-ao');
+      else if (subMenuId === 'indibiz') setActiveSubSubMenu('indibiz-ao-pda');
       else if (subMenuId === 'ebis') setActiveSubSubMenu('ebis-datin');
     }
     setIsSidebarOpen(false);
@@ -186,27 +189,87 @@ export default function DashboardPage() {
         };
       });
 
+      let rawDataToStore = rawData;
+      const indibizStatuses = new Set([
+        'ACT_COM',
+        'CANCEL',
+        'FO_UIM',
+        'FO_ASAP',
+        'FO_OSM',
+        'FO_WFM',
+        'PI',
+        'PS',
+        'REVOKE',
+        'SURVEY_NEW_MANJA',
+      ]);
+      let rowsToStore = json;
+      if (currentKey === 'indibiz-ao-pda') {
+        const requiredColumns = [
+          'KELOMPOK_STATUS',
+          'KELOMPOK_KENDALA',
+          'STATUS_RESUME',
+          'ORDER_DATE',
+          'TGL_MANJA',
+          'PROVIDER',
+          'STO',
+        ];
+        const availableColumns = new Set(
+          Object.keys(json[0] || {}).map((key) => key.trim().toUpperCase().replace(/\s+/g, '_'))
+        );
+        const missingColumns = requiredColumns.filter((column) => !availableColumns.has(column));
+        if (missingColumns.length > 0) {
+          throw new Error(`Kolom INDIBIZ tidak ditemukan: ${missingColumns.join(', ')}`);
+        }
+
+        rowsToStore = json.filter((row) =>
+          indibizStatuses.has(String(getColumn(row, ['KELOMPOK_STATUS']) ?? '').trim().toUpperCase())
+        );
+        const unmappedStos = Array.from(new Set(rowsToStore
+          .map((row) => getStoCode(row))
+          .filter((sto) => !stoMapping[sto])));
+        if (unmappedStos.length > 0) {
+          throw new Error(`STO belum ada di stoMapping: ${unmappedStos.join(', ')}`);
+        }
+        const invalidPiRows = rowsToStore.filter((row) => {
+          if (String(getColumn(row, ['KELOMPOK_STATUS']) ?? '').trim().toUpperCase() !== 'PI') return false;
+          const orderDate = getColumn(row, ['ORDER_DATE']);
+          if (typeof orderDate === 'number') return !XLSX.SSF.parse_date_code(orderDate);
+          if (orderDate instanceof Date) return Number.isNaN(orderDate.getTime());
+          return typeof orderDate !== 'string' || !orderDate.trim() || Number.isNaN(Date.parse(orderDate));
+        });
+        if (invalidPiRows.length > 0) {
+          throw new Error(`ORDER_DATE kosong atau tidak valid pada ${invalidPiRows.length} baris PI.`);
+        }
+        rawDataToStore = rawData.filter((_, index) =>
+          indibizStatuses.has(String(getColumn(json[index], ['KELOMPOK_STATUS']) ?? '').trim().toUpperCase())
+        );
+      }
+
       console.log('📊 TOTAL DATA DARI EXCEL:', json.length);
-      console.log('📊 DATA TERUPLOAD:', rawData.length);
+      console.log('📊 DATA TERUPLOAD:', rowsToStore.length);
 
       setUploadedRowsPerCategory((prev) => ({
         ...prev,
-        [currentKey]: json,
+        [currentKey]: rowsToStore,
       }));
+      if (currentKey === 'indibiz-ao-pda') {
+        setUploadedAtPerCategory((prev) => ({ ...prev, [currentKey]: Date.now() }));
+      }
 
       setDataPerCategory((prev) => ({
         ...prev,
-        [currentKey]: rawData,
+        [currentKey]: rawDataToStore,
       }));
       setFilteredDataPerCategory((prev) => ({
         ...prev,
-        [currentKey]: rawData,
+        [currentKey]: rawDataToStore,
       }));
 
-      alert(`✅ Berhasil! ${rawData.length} baris data dimuat (${file.name})`);
+      const ignoredRows = json.length - rowsToStore.length;
+      alert(`✅ Berhasil! ${rowsToStore.length} baris data dimuat${currentKey === 'indibiz-ao-pda' ? `, ${ignoredRows} baris kategori diabaikan` : ''} (${file.name})`);
     } catch (error) {
       console.error('Error upload:', error);
-      alert('❌ Gagal membaca file. Pastikan format file benar.');
+      alert(`❌ Gagal membaca file: ${error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui.'}`);
     }
   };
   reader.readAsArrayBuffer(file);
@@ -390,8 +453,12 @@ export default function DashboardPage() {
             <TabelPDAIndihome {...commonProps} />
           )}
 
-          {activeSubSubMenu?.startsWith('indibiz') && (
-            <TabelKosong title="INDIBIZ" />
+          {activeSubSubMenu === 'indibiz-ao-pda' && (
+            <TabelIndibiz
+              rows={uploadedRowsPerCategory[currentKey] || []}
+              asOf={uploadedAtPerCategory[currentKey] || 0}
+              handleFileUpload={handleFileUpload}
+            />
           )}
 
           {activeSubSubMenu === 'ebis-datin' && (
