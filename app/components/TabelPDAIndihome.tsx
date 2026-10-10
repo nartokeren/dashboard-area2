@@ -170,34 +170,35 @@ export default function TabelPDAIndihome({
   const generateSummaryReport = (area2Row: any, tableData: any[]) => {
     const now = new Date();
     const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    
-    // Header Summary
-    const headerSummary = `Posisi Jam ${timeStr}, PS HI : ${area2Row.psHI}, Inprogress : ${area2Row.totalInprogress}, dan Order PI : ${area2Row.totalOrderPI}`;
-    
-    // Regional Summary
-    let regionalSummary = 'REGIONAL TABLE\nNO | REGIONAL | PS HI | RE HI | PS/RE HI\n';
-    const regionalItems = tableData.filter((item: any) => item.isSubTotal);
-    const sortedRegional = [...regionalItems]
-      .sort((a: any, b: any) => b.psHI - a.psHI)
-      .map((item: any, idx: number) => 
-        `${idx + 1} | ${item.regional} | ${item.psHI} | ${item.reHI} | ${(item.psReHI || 0).toFixed(2)}%`
+
+    const regionalRows = tableData
+      .filter((item: any) => item.isSubTotal)
+      .sort((first: any, second: any) => second.psHI - first.psHI)
+      .map((item: any, index: number) =>
+        `${index + 1} | ${item.regional} | *${item.psHI}* | ${item.reHI} | ${(item.psReHI || 0).toFixed(2)}%`
       );
-    regionalSummary += sortedRegional.join('\n');
-    
-    // Branch Summary
-    let branchSummary = '\nBRANCH TABLE\nNO | BRANCH | PS HI | RE HI | PS/RE HI\n';
-    const branchItems = tableData.filter((item: any) => !item.isSubTotal && !item.isArea2);
-    const sortedBranch = [...branchItems]
-      .sort((a: any, b: any) => b.psHI - a.psHI)
-      .map((item: any, idx: number) => 
-        `${idx + 1} | ${item.branch} | ${item.psHI} | ${item.reHI} | ${(item.psReHI || 0).toFixed(2)}%`
+    const branchRows = tableData
+      .filter((item: any) => !item.isSubTotal && !item.isArea2)
+      .sort((first: any, second: any) => second.psHI - first.psHI)
+      .map((item: any, index: number) =>
+        `${index + 1} | ${item.branch} | *${item.psHI}* | ${item.reHI} | ${(item.psReHI || 0).toFixed(2)}%`
       );
-    branchSummary += sortedBranch.join('\n');
-    
-    // AREA 2 total
-    branchSummary += `\n# | AREA 2 | ${area2Row.psHI} | ${area2Row.reHI} | ${(area2Row.psReHI || 0).toFixed(2)}%`;
-    
-    return { headerSummary, regionalSummary, branchSummary, fullSummary: headerSummary + '\n\n' + regionalSummary + '\n' + branchSummary };
+
+    return {
+      fullSummary: [
+        '*REPORT PROGRESS ORDER PDA INDIHOME AREA 2*',
+        '',
+        `Posisi Jam ${timeStr}, PS HI : ${area2Row.psHI}, Inprogress : ${area2Row.totalInprogress}, dan Order PI : ${area2Row.totalOrderPI}`,
+        '',
+        '==============',
+        'NO | REGIONAL | PS HI | RE HI | PS/RE HI',
+        ...regionalRows,
+        '==============',
+        'NO | BRANCH | PS HI | RE HI | PS/RE HI',
+        ...branchRows,
+        `AREA 2 | *${area2Row.psHI}* | ${area2Row.reHI} | ${(area2Row.psReHI || 0).toFixed(2)}%`,
+      ].join('\n'),
+    };
   };
 
   // ============================================
@@ -541,6 +542,21 @@ export default function TabelPDAIndihome({
     <div>
       {/* FILTER + CARDS */}
       <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Daily report / INDIHOME</p>
+            <h2 className="mt-1 text-base font-bold tracking-tight text-slate-900">PDA · Progress Order</h2>
+          </div>
+          <label className="report-action report-action--upload">
+            Import Excel
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">📅 DATECREATED</label>
@@ -580,17 +596,12 @@ export default function TabelPDAIndihome({
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-2">
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileUpload}
-            className="block text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
-          />
           <button
+            type="button"
             onClick={processData}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            className="report-action report-action--process"
           >
-            🔍 Proses Data
+            Proses Data
           </button>
         </div>
         <p className="text-xs text-blue-600 font-semibold mt-1">
@@ -635,7 +646,7 @@ export default function TabelPDAIndihome({
           <div className="flex justify-end mb-2">
             <button
               onClick={() => exportSection('executive-summary-pda', 'Executive_Summary_PDA')}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+              className="report-action report-action--export"
             >
               🖼️ Export PNG
             </button>
@@ -754,7 +765,7 @@ export default function TabelPDAIndihome({
           <div className="flex justify-end mb-2">
             <button
               onClick={() => exportSection('tabel-pda-content', 'Tabel_PDA')}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+              className="report-action report-action--export"
             >
               🖼️ Export PNG
             </button>
@@ -903,47 +914,14 @@ export default function TabelPDAIndihome({
                   <div data-export-ignore="true" className="bg-slate-50 p-4 rounded-lg mt-4 border border-slate-200">
                     <h3 className="text-sm font-bold text-slate-800 mb-3">📋 Report Summary</h3>
                     
-                    {/* Header Summary */}
-                    <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
-                      <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.headerSummary}</p>
-                      <button
-                        onClick={() => copyToClipboard(summaries.headerSummary)}
-                        className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
-                      >
-                        📋 Copy Header
-                      </button>
-                    </div>
-
-                    {/* Regional Summary */}
-                    <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
-                      <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.regionalSummary}</p>
-                      <button
-                        onClick={() => copyToClipboard(summaries.regionalSummary)}
-                        className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
-                      >
-                        📋 Copy Regional
-                      </button>
-                    </div>
-
-                    {/* Branch Summary */}
-                    <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
-                      <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.branchSummary}</p>
-                      <button
-                        onClick={() => copyToClipboard(summaries.branchSummary)}
-                        className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
-                      >
-                        📋 Copy Branch
-                      </button>
-                    </div>
-
-                    {/* Full Summary */}
                     <div className="p-3 bg-white border border-slate-300 rounded">
                       <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.fullSummary}</p>
                       <button
+                        type="button"
                         onClick={() => copyToClipboard(summaries.fullSummary)}
-                        className="mt-2 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition font-bold"
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
                       >
-                        📋 Copy All
+                        Salin summary
                       </button>
                     </div>
 
@@ -960,13 +938,9 @@ export default function TabelPDAIndihome({
 
       {/* EMPTY STATE */}
       {safeFilteredData.length === 0 && (
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
-          <p className="text-slate-500 text-sm">
-            🚀 Upload file Excel dan klik <strong>"Proses Data"</strong> untuk mulai!
-          </p>
-          <p className="text-slate-400 text-xs mt-1">
-            Pastikan file Excel memiliki kolom: DATECREATED, STATUSDATE, STATUS, DISTRICT_TIF, TGL_MANJA, WONUM, ERRORCODE_AKHIR
-          </p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+          <p className="text-sm font-semibold text-slate-700">Belum ada data report</p>
+          <p className="mt-1 text-xs text-slate-500">Import file Excel lalu pilih Proses Data untuk membentuk report Indihome PDA.</p>
         </div>
       )}
 

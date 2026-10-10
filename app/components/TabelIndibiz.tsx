@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { FaCopy, FaDownload, FaFileExcel } from 'react-icons/fa';
 import { getStoCode, stoMapping } from '@/constants/stoMapping';
+import { getIndibizManjaCategory, parseManjaDate } from '@/utils/manja';
 
 interface IndibizRow {
   [key: string]: unknown;
@@ -108,40 +109,6 @@ const parseOrderDate = (value: unknown): Date | null => {
   return null;
 };
 
-const parseManjaDate = (value: unknown): Date | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    const wholeDays = Math.floor(value);
-    const fractionalDay = value - wholeDays;
-    const seconds = Math.round(fractionalDay * 86400);
-    return new Date(1899, 11, 30 + wholeDays, 0, 0, seconds);
-  }
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-  if (typeof value !== 'string' || !value.trim()) return null;
-
-  const text = value.trim();
-  const localDateMatch = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
-  if (localDateMatch) {
-    const [, day, month, year, hour = '0', minute = '0', second = '0'] = localDateMatch;
-    const date = new Date(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute),
-      Number(second)
-    );
-    if (
-      date.getFullYear() !== Number(year) ||
-      date.getMonth() !== Number(month) - 1 ||
-      date.getDate() !== Number(day)
-    ) return null;
-    return date;
-  }
-
-  const date = new Date(text);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
 const formatManjaDate = (value: unknown) => {
   const date = parseManjaDate(value);
   if (!date || (
@@ -154,6 +121,9 @@ const formatManjaDate = (value: unknown) => {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
   }).format(date);
 };
 
@@ -168,22 +138,12 @@ const getOrderAgeCategory = (value: unknown, asOf: number) => {
 };
 
 const getManjaCategory = (value: unknown, asOf: number): ManjaCategory => {
-  const manjaDate = parseManjaDate(value);
-  if (!manjaDate || (
-    manjaDate.getFullYear() === 1970 &&
-    manjaDate.getMonth() === 0 &&
-    manjaDate.getDate() === 1
-  )) return 'anomaly';
-
-  const reportDate = new Date(asOf);
-  const manjaDay = Date.UTC(manjaDate.getFullYear(), manjaDate.getMonth(), manjaDate.getDate());
-  const reportDay = Date.UTC(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate());
-  const dayDifference = Math.round((manjaDay - reportDay) / 86400000);
-
-  if (dayDifference < 0) return 'exp';
-  if (dayDifference === 0) return 'hi';
-  if (dayDifference === 1) return 'hPlus';
-  return 'hPlusPlus';
+  const category = getIndibizManjaCategory(value, asOf);
+  if (category === 'MANJA EXP') return 'exp';
+  if (category === 'MANJA HI') return 'hi';
+  if (category === 'MANJA H+') return 'hPlus';
+  if (category === 'MANJA H++') return 'hPlusPlus';
+  return 'anomaly';
 };
 
 const getSegment = (provider: unknown): keyof ReportCounts['segments'] => {
@@ -215,14 +175,12 @@ const mergeCounts = (target: ReportCounts, source: ReportCounts) => {
   target.ps += source.ps;
 };
 
-const formatPercent = (ps: number, totalPi: number, totalFallout: number, actcomp: number) => {
-  const denominator = totalPi + totalFallout + actcomp + ps;
-  return denominator === 0 ? '0.00%' : `${((ps / denominator) * 100).toFixed(2)}%`;
+const formatPercent = (ps: number, totalPi: number) => {
+  return totalPi === 0 ? '0.00%' : `${((ps / totalPi) * 100).toFixed(2)}%`;
 };
 
-const meetsTarget = (ps: number, totalPi: number, totalFallout: number, actcomp: number) => {
-  const denominator = totalPi + totalFallout + actcomp + ps;
-  return denominator > 0 && (ps / denominator) * 100 >= 95;
+const meetsTarget = (ps: number, totalPi: number) => {
+  return totalPi > 0 && (ps / totalPi) * 100 >= 95;
 };
 
 const manjaCategoryStyles: Record<ManjaCategory, { label: string; cell: string; header: string }> = {
@@ -293,7 +251,7 @@ const ReportDataCells = ({
       className={`${subtotal || grandTotal ? '' : color} ${bandClass}`}
     />
   );
-  const achieved = meetsTarget(counts.ps, counts.totalPi, counts.totalFallout, counts.actcomp);
+  const achieved = meetsTarget(counts.ps, counts.totalPi);
 
   return (
     <>
@@ -328,7 +286,7 @@ const ReportDataCells = ({
               ? 'text-emerald-700'
               : 'text-rose-700'
       }`}>
-        {formatPercent(counts.ps, counts.totalPi, counts.totalFallout, counts.actcomp)}
+        {formatPercent(counts.ps, counts.totalPi)}
       </td>
     </>
   );
@@ -428,17 +386,30 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
   );
 
   const textSummary = useMemo(() => [
-    'BRANCH / SURVEY OPEN / INVALID SURVEY / PI / FALLOUT / PS/PI (%)',
+    '*REPORT PROGRESS ORDER AO+PDA INDIBIZ AREA 2*',
+    `Posisi: ${new Intl.DateTimeFormat('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date(asOf))}`,
+    'Sources: Xpro menu 9 Bintang',
+    '',
+    'BRANCH / SURVEY OPEN / INVALID SURVEY / PI / FALLOUT / PS / PS/PI (%)',
     ...summaryRows.map(({ branch, counts }) =>
-      `${branch} / ${counts.totalSurveyOpen} / ${counts.totalInvalidSurvey} / ${counts.totalPi} / ${counts.totalFallout} / ${formatPercent(counts.ps, counts.totalPi, counts.totalFallout, counts.actcomp)}`
+      `${branch} / ${counts.totalSurveyOpen} / ${counts.totalInvalidSurvey} / ${counts.totalPi} / ${counts.totalFallout} / *${counts.ps}* / ${formatPercent(counts.ps, counts.totalPi)}`
     ),
-  ].join('\n'), [summaryRows]);
+    `AREA 2 / ${totals.totalSurveyOpen} / ${totals.totalInvalidSurvey} / ${totals.totalPi} / ${totals.totalFallout} / *${totals.ps}* / ${formatPercent(totals.ps, totals.totalPi)}`,
+  ].join('\n'), [asOf, summaryRows, totals]);
 
   const surveyOpenDetails = useMemo(() => {
     const details = rows
       .filter((row) =>
         String(readColumn(row, 'KELOMPOK_STATUS') ?? '').trim().toUpperCase() === 'SURVEY_NEW_MANJA' &&
-        !String(readColumn(row, 'STATUS_RESUME') ?? '').toUpperCase().includes('INVALID')
+        !String(readColumn(row, 'STATUS_RESUME') ?? '').toUpperCase().includes('INVALID') &&
+        ['MANJA HI', 'MANJA H+'].includes(getIndibizManjaCategory(readColumn(row, 'TGL_MANJA'), asOf))
       )
       .map((row) => {
         const sto = getStoCode(row);
@@ -446,7 +417,8 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
         const branch = mapping?.branch || `UNKNOWN (${sto || 'STO'})`;
         const serviceArea = mapping?.serviceArea || 'UNKNOWN';
         const orderId = String(readColumn(row, 'ORDER_ID') ?? '').trim() || '-';
-        const manjaDate = formatManjaDate(readColumn(row, 'TGL_MANJA'));
+        const manjaValue = readColumn(row, 'TGL_MANJA');
+        const manjaDate = formatManjaDate(manjaValue);
         return { branch, serviceArea, orderId, manjaDate };
       })
       .sort((a, b) =>
@@ -458,12 +430,12 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
     return [
       '*DETAIL ORDER SURVEY OPEN INDIBIZ*',
       '',
-      'BRANCH / SERVICE AREA / ORDER ID / TANGGAL MANJA',
+      'BRANCH / SERVICE AREA / ORDER ID / JAM MANJA',
       ...details.map(({ branch, serviceArea, orderId, manjaDate }) =>
         `${branch} / ${serviceArea} / ${orderId} / ${manjaDate}`
       ),
     ].join('\n');
-  }, [rows]);
+  }, [asOf, rows]);
 
   const provisioningDetails = useMemo(() => {
     const details = rows
@@ -607,7 +579,7 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
   };
 
   const uploadControl = (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-cyan-700 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-800 focus-within:ring-2 focus-within:ring-cyan-500 focus-within:ring-offset-2">
+    <label className="report-action report-action--upload">
       <FaFileExcel aria-hidden="true" />
       Import Excel
       <input type="file" accept=".xls,.xlsx" onChange={handleFileUpload} className="hidden" />
@@ -628,7 +600,7 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
             <button
               type="button"
               onClick={exportPng}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
+              className="report-action report-action--export"
             >
               <FaDownload aria-hidden="true" />
               Export PNG
@@ -743,7 +715,7 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
             <button
               type="button"
               onClick={copySummary}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-cyan-300 hover:bg-cyan-50"
+              className="report-action report-action--copy"
             >
               <FaCopy aria-hidden="true" />
               {copyFeedback}
@@ -762,7 +734,7 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
             <button
               type="button"
               onClick={copySurveyOpenDetails}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-cyan-300 hover:bg-cyan-50"
+              className="report-action report-action--copy"
             >
               <FaCopy aria-hidden="true" />
               {surveyDetailCopyFeedback}
@@ -781,7 +753,7 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
             <button
               type="button"
               onClick={copyProvisioningDetails}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-cyan-300 hover:bg-cyan-50"
+              className="report-action report-action--copy"
             >
               <FaCopy aria-hidden="true" />
               {piDetailCopyFeedback}

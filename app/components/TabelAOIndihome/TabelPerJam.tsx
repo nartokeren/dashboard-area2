@@ -2,6 +2,10 @@
 
 import React from 'react';
 import { isSameDay } from 'date-fns';
+import { Chart as ChartJS, CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend } from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend);
 
 interface TabelPerJamProps {
   filteredData: any[];
@@ -13,7 +17,6 @@ interface TabelPerJamProps {
   currentHour: number;
   regionalMapping: any;
   parseDate: (value: any) => Date | null;
-  exportSection?: (elementId: string, fileName: string) => void;
 }
 
 export default function TabelPerJam({
@@ -26,7 +29,6 @@ export default function TabelPerJam({
   currentHour,
   regionalMapping,
   parseDate,
-  exportSection,
 }: TabelPerJamProps) {
   // ============================================
   // HITUNG DATA PER JAM (HARI INI)
@@ -162,6 +164,44 @@ export default function TabelPerJam({
     return null;
   }
 
+  const chartHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
+  const hourlyChartData = {
+    labels: chartHours.map((hour) => `${String(hour).padStart(2, '0')}:00`),
+    datasets: [
+      {
+        label: 'RE',
+        data: chartHours.map((hour) => hour <= currentHour ? grandTotalRE[hour] : null),
+        borderColor: '#2563eb',
+        backgroundColor: '#2563eb',
+        tension: 0.25,
+      },
+      {
+        label: 'PS',
+        data: chartHours.map((hour) => hour <= currentHour ? grandTotalPS[hour] : null),
+        borderColor: '#16a34a',
+        backgroundColor: '#16a34a',
+        tension: 0.25,
+      },
+    ],
+  };
+  const hourlyChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom' as const },
+      tooltip: { mode: 'index' as const, intersect: false },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { precision: 0 },
+      },
+    },
+  };
+  const deviationPeriodLabel = currentHour >= 10
+    ? `(${String(currentHour - 1).padStart(2, '0')}:00 vs ${String(currentHour - 2).padStart(2, '0')}:00)`
+    : '(belum tersedia)';
+
   // ============================================
   // RENDER
   // ============================================
@@ -171,16 +211,17 @@ export default function TabelPerJam({
         <h2 className="text-sm font-bold text-slate-800">
           📋 Monitoring Pergerakan Order New Sales Indihome per-Jam (Hari Ini)
         </h2>
-        {exportSection && (
-          <button
-            onClick={() => exportSection('tabel-perjam', 'PerJam')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
-          >
-            🖼️ Export PNG
-          </button>
-        )}
       </div>
-      <table className="w-full text-[10px] border-collapse">
+      <div className="w-max min-w-full">
+      <div className="mb-4 w-full rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-slate-700">Grafik pergerakan order per jam</h3>
+        </div>
+        <div className="h-72 min-h-72">
+          <Line data={hourlyChartData} options={hourlyChartOptions} />
+        </div>
+      </div>
+      <table className="w-max min-w-full text-[10px] border-collapse">
         <thead>
           <tr className="bg-slate-800 text-white">
             <th rowSpan={2} className="border border-slate-600 p-1 text-left font-bold align-middle">REGIONAL</th>
@@ -190,6 +231,15 @@ export default function TabelPerJam({
                 {String(jam).padStart(2, '0')}:00
               </th>
             ))}
+            <th rowSpan={2} className="w-[88px] min-w-[88px] max-w-[88px] whitespace-normal break-words border border-slate-600 bg-slate-700 p-1 text-center font-bold leading-tight">
+              DEV RE<br />{deviationPeriodLabel}
+            </th>
+            <th rowSpan={2} className="w-[88px] min-w-[88px] max-w-[88px] whitespace-normal break-words border border-slate-600 bg-slate-700 p-1 text-center font-bold leading-tight">
+              DEV PS<br />{deviationPeriodLabel}
+            </th>
+            <th rowSpan={2} className="w-[88px] min-w-[88px] max-w-[88px] whitespace-normal break-words border border-slate-600 bg-slate-700 p-1 text-center font-bold leading-tight">
+              DEV PS/RE (%)<br />{deviationPeriodLabel}
+            </th>
             <th rowSpan={2} className="border border-slate-600 p-1 text-center font-bold bg-slate-700">PS/RE</th>
           </tr>
           <tr className="bg-slate-600 text-white">
@@ -242,9 +292,22 @@ export default function TabelPerJam({
               if (isSubTotal) bgColor = 'bg-blue-100';
               if (isArea2) bgColor = 'bg-slate-800 text-white';
 
-              const totalRE = item.reJam?.[23] ?? 0;
-              const totalPS = item.psJam?.[23] ?? 0;
+              const totalRE = currentHour >= 8 ? item.reJam?.[currentHour] ?? 0 : 0;
+              const totalPS = currentHour >= 8 ? item.psJam?.[currentHour] ?? 0 : 0;
               const psRePercent = totalRE > 0 ? (totalPS / totalRE) * 100 : 0;
+              const comparisonHour = currentHour - 2;
+              const deviationHour = currentHour - 1;
+              const comparisonRE = item.reJam?.[comparisonHour] ?? 0;
+              const comparisonPS = item.psJam?.[comparisonHour] ?? 0;
+              const deviationRE = item.reJam?.[deviationHour] ?? 0;
+              const deviationPS = item.psJam?.[deviationHour] ?? 0;
+              const comparisonPsRe = comparisonRE > 0 ? (comparisonPS / comparisonRE) * 100 : 0;
+              const deviationPsRe = deviationRE > 0 ? (deviationPS / deviationRE) * 100 : 0;
+              const reDeviation = deviationRE - comparisonRE;
+              const psDeviation = deviationPS - comparisonPS;
+              const psReDeviation = deviationPsRe - comparisonPsRe;
+              const deltaClass = (value: number) => value > 0 ? 'text-green-700' : value < 0 ? 'text-red-700' : 'text-slate-500';
+              const formatCountDelta = (value: number) => value > 0 ? `+${value}` : String(value);
 
               return (
                 <tr key={item.idx} className={`${bgColor} hover:bg-blue-50 transition-colors`}>
@@ -276,6 +339,15 @@ export default function TabelPerJam({
                       </React.Fragment>
                     );
                   })}
+                  <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${isArea2 ? 'text-white' : deltaClass(reDeviation)}`}>
+                    {currentHour < 10 ? '-' : formatCountDelta(reDeviation)}
+                  </td>
+                  <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${isArea2 ? 'text-white' : deltaClass(psDeviation)}`}>
+                    {currentHour < 10 ? '-' : formatCountDelta(psDeviation)}
+                  </td>
+                  <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${isArea2 ? 'text-white' : deltaClass(psReDeviation)}`}>
+                    {currentHour < 10 ? '-' : `${psReDeviation > 0 ? '+' : ''}${psReDeviation.toFixed(2)}%`}
+                  </td>
                   <td className={`border border-slate-300 p-1 text-center font-mono font-bold ${isArea2 ? 'text-white' : (psRePercent >= 85 ? 'text-green-600' : 'text-red-600')}`}>
                     {currentHour < 8 ? '-' : psRePercent.toFixed(2) + '%'}
                   </td>
@@ -285,6 +357,7 @@ export default function TabelPerJam({
           })()}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

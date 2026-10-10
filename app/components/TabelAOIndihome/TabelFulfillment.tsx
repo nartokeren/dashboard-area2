@@ -41,6 +41,7 @@ export default function TabelFulfillment({
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const summaryTableRef = useRef<HTMLTableElement>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
+  const [morningSummary, setMorningSummary] = useState('');
 
   const getKategoriManja = (row: any) => {
     const status = row['STATUS'] || '';
@@ -308,28 +309,63 @@ export default function TabelFulfillment({
     }
   };
 
-  const generateSummaryReport = (area2Data: any, regionalArray: any[], branchArray: any[]) => {
+  const generateSummaryReport = (area2Data: any, tableData: any[]) => {
     const now = new Date();
     const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    
-    const headerSummary = `Posisi Jam ${timeStr}, PS : ${area2Data.psHI}, Acomp + Inscomp + Valstart + Valcomp : ${area2Data.totalInprogress}, dan Manja Exp + Manja HI + Non Manja + Manja H+ : ${area2Data.totalOrderPI}`;
-    
-    let regionalSummary = 'REGIONAL TABLE\nNO | REGIONAL | PS HI | TGT PS 2.3K | DEV TGT\n';
-    const sortedRegional = [...regionalArray]
-      .filter((item: any) => item.isSubTotal)
-      .sort((a: any, b: any) => b.psHI - a.psHI)
-      .map((item: any, idx: number) => `${idx + 1} | ${item.regional} | ${item.psHI} | ${item.tgtPSHI?.toLocaleString() || '0'} | ${(item.devHI).toLocaleString()}`);
-    regionalSummary += sortedRegional.join('\n');
-    
-    let branchSummary = '\nBRANCH TABLE\nNO | BRANCH | PS HI | TGT PS 2.3K | DEV TGT\n';
-    const sortedBranch = [...branchArray]
+
+    const summaryLines = [
+      '*REPORT PROGRESS AO INDIHOME AREA 2*',
+      '',
+      `Posisi Jam ${timeStr}, PS : ${area2Data.psHI}, Acomp + Inscomp + Valstart + Valcomp : ${area2Data.actcomp + area2Data.instcomp + area2Data.valstart + area2Data.valcomp}, dan Manja Exp + Manja HI + Non Manja + Manja H+ : ${area2Data.totalOrderPI}`,
+      '',
+      '===========',
+      'NO | REGIONAL | PS HI | TGT PS 2.3K | DEV TGT',
+      ...tableData
+        .filter((item: any) => item.isSubTotal)
+        .sort((a: any, b: any) => b.psHI - a.psHI)
+        .map((item: any, idx: number) =>
+          `${idx + 1} | ${item.regional} | *${item.psHI}* | ${(item.tgtPSHI || 0).toLocaleString('en-US')} | ${(item.devHI || 0).toLocaleString('en-US')}`
+        ),
+      '===========',
+      'NO | BRANCH | PS HI | TGT PS 2.3K | DEV TGT',
+      ...[...tableData]
       .filter((item: any) => !item.isSubTotal && !item.isArea2)
       .sort((a: any, b: any) => b.psHI - a.psHI)
-      .map((item: any, idx: number) => `${idx + 1} | ${item.branch} | ${item.psHI} | ${item.tgtPSHI?.toLocaleString() || '0'} | ${(item.devHI).toLocaleString()}`);
-    branchSummary += sortedBranch.join('\n');
-    branchSummary += `\n# | AREA 2 | ${area2Data.psHI} | ${area2Data.tgtPSHI?.toLocaleString() || '0'} | ${(area2Data.devHI).toLocaleString()}`;
-    
-    return { headerSummary, regionalSummary, branchSummary, fullSummary: headerSummary + '\n\n' + regionalSummary + branchSummary };
+      .map((item: any, idx: number) =>
+        `${idx + 1} | ${item.branch} | *${item.psHI}* | ${(item.tgtPSHI || 0).toLocaleString('en-US')} | ${(item.devHI || 0).toLocaleString('en-US')}`
+      ),
+      `AREA 2 | *${area2Data.psHI}* | ${(area2Data.tgtPSHI || 0).toLocaleString('en-US')} | ${(area2Data.devHI || 0).toLocaleString('en-US')}`,
+    ];
+
+    return { fullSummary: summaryLines.join('\n') };
+  };
+
+  const generateMorningManjaSummary = () => {
+    const fromDate = dateFrom ? startOfDay(new Date(dateFrom)) : null;
+    const toDate = dateTo ? endOfDay(new Date(dateTo)) : null;
+    const countsByBranch = new Map<string, number>();
+
+    filteredData.forEach((row: any) => {
+      if (row['STATUS'] !== 'STARTWORK') return;
+      const dateCreated = parseDate(row['DATECREATED']);
+      if (!dateCreated || (fromDate && isBefore(dateCreated, fromDate)) || (toDate && isAfter(dateCreated, toDate))) return;
+      const tglManja = parseDate(row['TGL_MANJA']);
+      if (!tglManja || !isSameDay(tglManja, new Date()) || tglManja.getHours() !== 8) return;
+
+      const branch = String(row['DISTRICT_TIF'] || 'UNKNOWN');
+      countsByBranch.set(branch, (countsByBranch.get(branch) || 0) + 1);
+    });
+
+    const lines = [
+      '*MODAL MANJA PAGI HARI INI*',
+      '',
+      'BRANCH | JML ORDER MJ HI 08',
+      ...Array.from(countsByBranch.entries())
+        .sort(([first], [second]) => first.localeCompare(second))
+        .map(([branch, count]) => `${branch} | ${count}`),
+      `AREA 2 | ${Array.from(countsByBranch.values()).reduce((total, count) => total + count, 0)}`,
+    ];
+    return lines.join('\n');
   };
 
   const openModalSummary = (regionalName?: string) => {
@@ -337,9 +373,10 @@ export default function TabelFulfillment({
     setModalData(summaryData);
     setModalTitle(regionalName ? `Summary ORDER PI - ${regionalName}` : 'Summary ORDER PI - AREA 2');
     setModalType('summary');
-    setShowExportButton(!!regionalName);
+    setShowExportButton(true);
     setExpandedRows(new Set());
     setModalOpen(true);
+    setMorningSummary(regionalName ? '' : generateMorningManjaSummary());
   };
 
   const openModalDetail = (branchName: string) => {
@@ -685,7 +722,7 @@ export default function TabelFulfillment({
         {exportSection && (
           <button
             onClick={() => exportSection('tabel-fulfillment', 'Fulfillment_Endstate')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
@@ -862,49 +899,19 @@ export default function TabelFulfillment({
         const area2Row = result.branchArray.find((item: any) => item.isArea2);
         if (!area2Row) return null;
         
-        const summaries = generateSummaryReport(area2Row, result.branchArray, result.branchArray);
+        const summaries = generateSummaryReport(area2Row, result.branchArray);
         
         return (
           <div data-export-ignore="true" className="bg-slate-50 p-4 rounded-lg mt-4 border border-slate-200">
             <h3 className="text-sm font-bold text-slate-800 mb-3">📋 Report Summary</h3>
             
-            <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
-              <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.headerSummary}</p>
-              <button
-                onClick={() => copyToClipboard(summaries.headerSummary)}
-                className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
-              >
-                📋 Copy Header
-              </button>
-            </div>
-
-            <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
-              <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.regionalSummary}</p>
-              <button
-                onClick={() => copyToClipboard(summaries.regionalSummary)}
-                className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
-              >
-                📋 Copy Regional
-              </button>
-            </div>
-
-            <div className="mb-4 p-3 bg-white border border-slate-300 rounded">
-              <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.branchSummary}</p>
-              <button
-                onClick={() => copyToClipboard(summaries.branchSummary)}
-                className="mt-2 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
-              >
-                📋 Copy Branch
-              </button>
-            </div>
-
             <div className="p-3 bg-white border border-slate-300 rounded">
               <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{summaries.fullSummary}</p>
               <button
                 onClick={() => copyToClipboard(summaries.fullSummary)}
-                className="mt-2 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition font-bold"
+                className="report-action report-action--copy mt-3"
               >
-                📋 Copy All
+                Salin summary
               </button>
             </div>
 
@@ -961,6 +968,19 @@ export default function TabelFulfillment({
               )}
 
               {modalType === 'summary' && (
+                <>
+                {morningSummary && (
+                  <div className="mb-4 rounded-xl border border-cyan-100 bg-cyan-50 p-4">
+                    <p className="whitespace-pre-wrap font-mono text-xs leading-5 text-slate-700">{morningSummary}</p>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(morningSummary)}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
+                    >
+                      Salin summary
+                    </button>
+                  </div>
+                )}
                 <table ref={summaryTableRef} className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-700 text-white">
@@ -1049,6 +1069,7 @@ export default function TabelFulfillment({
                     ))}
                   </tbody>
                 </table>
+                </>
               )}
 
               {modalData.length === 0 && (
@@ -1064,14 +1085,14 @@ export default function TabelFulfillment({
               {modalType === 'summary' && showExportButton && (
                 <button
                   onClick={exportSummaryTable}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200 flex items-center gap-2"
+                  className="report-action report-action--export"
                 >
                   📥 Export PNG
                 </button>
               )}
               <button
                 onClick={() => setModalOpen(false)}
-                className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded transition duration-200"
+                className="report-action report-action--primary"
               >
                 Tutup
               </button>

@@ -477,7 +477,7 @@ export default function TabelPsReH1({
           <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{generateSummaryReport()}</p>
           <button
             onClick={() => copyToClipboard(generateSummaryReport())}
-            className="mt-2 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition font-bold"
+            className="report-action report-action--copy mt-2"
           >
             📋 Copy Report
           </button>

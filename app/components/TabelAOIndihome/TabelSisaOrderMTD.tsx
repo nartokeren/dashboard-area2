@@ -151,7 +151,7 @@ export default function TabelSisaOrderMTD({
         {exportSection && (
           <button
             onClick={() => exportSection('tabel-sisaorder-mtd', 'Sisa_Order_MTD')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>

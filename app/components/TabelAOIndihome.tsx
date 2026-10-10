@@ -184,10 +184,10 @@ export default function TabelAOIndihome({
       />
 
       <div className="relative mb-6">
-        <div className="flex justify-end mb-2">
+        <div className={`flex justify-end mb-2 ${safeFilteredData.length === 0 ? 'hidden' : ''}`}>
           <button
             onClick={() => exportSection('executive-summary-content', 'Executive_Summary')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
@@ -206,10 +206,10 @@ export default function TabelAOIndihome({
       </div>
 
       <div className="relative mb-6">
-        <div className="flex justify-end mb-2">
+        <div className={`flex justify-end mb-2 ${safeFilteredData.length === 0 ? 'hidden' : ''}`}>
           <button
             onClick={() => exportSection('tabel-fulfillment-content', 'Fulfillment_Endstate')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
@@ -229,10 +229,10 @@ export default function TabelAOIndihome({
       </div>
 
       <div className="relative mb-6">
-        <div className="flex justify-end mb-2">
+        <div className={`flex justify-end mb-2 ${safeFilteredData.length === 0 ? 'hidden' : ''}`}>
           <button
             onClick={() => exportSection('tabel-psre-h1-content', 'PS_RE_H1')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
@@ -250,10 +250,10 @@ export default function TabelAOIndihome({
       </div>
 
       <div className="relative mb-6">
-        <div className="flex justify-end mb-2">
+        <div className={`flex justify-end mb-2 ${safeFilteredData.length === 0 ? 'hidden' : ''}`}>
           <button
             onClick={() => exportSection('tabel-perjam-content', 'PerJam')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
@@ -274,10 +274,10 @@ export default function TabelAOIndihome({
       </div>
 
       <div className="relative mb-6">
-        <div className="flex justify-end mb-2">
+        <div className={`flex justify-end mb-2 ${safeFilteredData.length === 0 ? 'hidden' : ''}`}>
           <button
             onClick={() => exportSection('tabel-sisaorder-mtd-content', 'Sisa_Order_MTD')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
@@ -291,10 +291,10 @@ export default function TabelAOIndihome({
       </div>
 
       <div className="relative mb-6">
-        <div className="flex justify-end mb-2">
+        <div className={`flex justify-end mb-2 ${safeFilteredData.length === 0 ? 'hidden' : ''}`}>
           <button
             onClick={() => exportSection('tabel-sisaorder-h1-content', 'Sisa_Order_H1')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
@@ -309,9 +309,9 @@ export default function TabelAOIndihome({
       </div>
 
       {safeFilteredData.length === 0 && (
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
-          <p className="text-slate-500 text-sm">🚀 Upload file Excel dan klik <strong>"Proses Data"</strong> untuk mulai!</p>
-          <p className="text-slate-400 text-xs mt-1">Pastikan file Excel memiliki kolom: DATECREATED, STATUSDATE, STATUS, DISTRICT_TIF, TGL_MANJA, WONUM, ERRORCODE_AKHIR</p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+          <p className="text-sm font-semibold text-slate-700">Belum ada data report</p>
+          <p className="mt-1 text-xs text-slate-500">Import file Excel lalu pilih Proses Data untuk membentuk report Indihome AO.</p>
         </div>
       )}
       <div className="mt-4 text-center text-[10px] text-slate-400">Dashboard Monitoring Order Indihome AREA 2</div>

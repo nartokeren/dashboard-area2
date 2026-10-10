@@ -252,7 +252,7 @@ export default function TabelEBISVULA({ filteredData, handleFileUpload }: TabelE
   };
 
   const uploadControl = (
-    <label className="cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700">
+    <label className="report-action report-action--upload">
       Upload Excel
       <input type="file" accept=".xls,.xlsx" onChange={handleFileUpload} className="hidden" />
     </label>
@@ -260,10 +260,19 @@ export default function TabelEBISVULA({ filteredData, handleFileUpload }: TabelE
 
   if (filteredData.length === 0) {
     return (
-      <section className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-6 text-center shadow-[0_12px_35px_rgba(23,38,61,0.06)]">
-        <div className="mb-3 flex justify-end">{uploadControl}</div>
-        <p className="text-sm font-medium text-slate-600">Upload file Excel untuk menampilkan report VULA.</p>
-        <p className="mt-1 text-xs text-slate-400">Detail progress mengikuti nilai STATUS pada file, usia order dihitung dari DATE CREATED.</p>
+      <section className="mt-4 min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_35px_rgba(23,38,61,0.06)] md:p-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Daily report / EBIS</p>
+            <h2 className="mt-1 text-lg font-bold tracking-tight text-slate-900">VULA · Order Progress</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Detail mengikuti STATUS; usia order dihitung dari DATE CREATED.</p>
+          </div>
+          {uploadControl}
+        </div>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
+          <p className="text-sm font-semibold text-slate-700">Belum ada data report</p>
+          <p className="mt-1 text-xs text-slate-500">Pilih file Excel EBIS VULA untuk mulai.</p>
+        </div>
       </section>
     );
   }
@@ -307,7 +316,7 @@ export default function TabelEBISVULA({ filteredData, handleFileUpload }: TabelE
           <button
             type="button"
             onClick={exportTableToPNG}
-            className="rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-purple-700"
+            className="report-action report-action--export"
           >
             Export PNG
           </button>
@@ -394,7 +403,7 @@ export default function TabelEBISVULA({ filteredData, handleFileUpload }: TabelE
           <button
             type="button"
             onClick={() => copyText(progressSummary)}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+            className="report-action report-action--copy"
           >
             {copyFeedback}
           </button>
@@ -407,7 +416,7 @@ export default function TabelEBISVULA({ filteredData, handleFileUpload }: TabelE
           <button
             type="button"
             onClick={() => copyText(detailSummary)}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+            className="report-action report-action--copy"
           >
             Salin detail
           </button>

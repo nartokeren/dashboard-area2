@@ -240,7 +240,7 @@ export default function ExecutiveSummary({
         {exportSection && (
           <button
             onClick={() => exportSection('executive-summary', 'Executive_Summary')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
@@ -451,7 +451,7 @@ export default function ExecutiveSummary({
           <p className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words">{generatePsReReport()}</p>
           <button
             onClick={() => copyToClipboard(generatePsReReport())}
-            className="mt-2 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition font-bold"
+            className="report-action report-action--copy"
           >
             📋 Copy Report
           </button>

@@ -21,6 +21,44 @@ import TabelEBISVULA from '../components/TabelEBISVULA';
 import TabelIndibiz from '../components/TabelIndibiz';
 import TabelKosong from '../components/TabelKosong';
 
+const DATE_TIME_COLUMNS_KEY = '__DATE_TIME_COLUMNS';
+
+const normalizedHeader = (value: string) => value.trim().toUpperCase().replace(/\s+/g, '_');
+
+const attachDateTimeFormats = (
+  rows: Record<string, unknown>[],
+  sheet: XLSX.WorkSheet,
+  headerRowIndex: number
+) => {
+  const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1');
+  const columnHeaders = new Map<number, string>();
+  for (let column = range.s.c; column <= range.e.c; column += 1) {
+    const headerCell = sheet[XLSX.utils.encode_cell({ r: headerRowIndex, c: column })];
+    const header = String(headerCell?.v ?? '').trim();
+    if (header) columnHeaders.set(column, header);
+  }
+
+  rows.forEach((row, index) => {
+    const sourceRowIndex = typeof row.__rowNum__ === 'number'
+      ? row.__rowNum__
+      : headerRowIndex + index + 1;
+    const columns = Array.from(columnHeaders.entries()).flatMap(([column, header]) => {
+      const cell = sheet[XLSX.utils.encode_cell({ r: sourceRowIndex, c: column })];
+      const numberFormat = String(cell?.z ?? '');
+      const hasTimeFormat = /(?:h{1,2}|s{1,2})/i.test(numberFormat.replace(/"[^"]*"/g, ''));
+      return hasTimeFormat && cell?.v !== null && cell?.v !== undefined && cell?.v !== ''
+        ? [normalizedHeader(header)]
+        : [];
+    });
+
+    Object.defineProperty(row, DATE_TIME_COLUMNS_KEY, {
+      value: columns,
+      enumerable: false,
+      configurable: true,
+    });
+  });
+};
+
 export default function DashboardPage() {
   const [activeMenu, setActiveMenu] = useState<string>('daily-report');
   const [activeSubMenu, setActiveSubMenu] = useState<string>('indihome');
@@ -94,7 +132,7 @@ export default function DashboardPage() {
       const data = new Uint8Array(e.target?.result as ArrayBuffer);
       
       // STEP 2: Baca workbook pake library xlsx (SUPPORT SEMUA FORMAT!)
-      const workbook = XLSX.read(data, { type: 'array' });
+      const workbook = XLSX.read(data, { type: 'array', cellNF: true });
 
       // STEP 3: 🔥 KALAU FILENYA .xls, CONVERT KE .xlsx DULU!
       let fileToProcess = workbook;
@@ -108,7 +146,7 @@ export default function DashboardPage() {
         });
         
         // Baca ulang hasil convert .xlsx-nya
-        const convertedWorkbook = XLSX.read(xlsxData, { type: 'array' });
+        const convertedWorkbook = XLSX.read(xlsxData, { type: 'array', cellNF: true });
         fileToProcess = convertedWorkbook;
         
         console.log('✅ Berhasil convert .xls → .xlsx di memory!');
@@ -118,6 +156,7 @@ export default function DashboardPage() {
       const sheet = fileToProcess.Sheets[fileToProcess.SheetNames[0]];
       const isEbisUpload = currentKey.startsWith('ebis-');
       let json: Record<string, unknown>[];
+      let headerRowIndex = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1').s.r;
 
       if (isEbisUpload) {
         const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null }) as unknown[][];
@@ -128,20 +167,27 @@ export default function DashboardPage() {
         if (headerIndex === -1) {
           throw new Error('Header Description tidak ditemukan di file Excel EBIS.');
         }
+        headerRowIndex += headerIndex;
 
         const headers = matrix[headerIndex].map((header, index) => {
           const name = String(header ?? '').trim();
           return name || `COLUMN_${index}`;
         });
-        json = matrix.slice(headerIndex + 1).map((values) =>
-          headers.reduce((row, header, index) => {
-            row[header] = values[index] ?? null;
-            return row;
-          }, {} as Record<string, unknown>)
-        );
+        json = matrix.slice(headerIndex + 1).map((values, index) => {
+          const row = headers.reduce((result, header, columnIndex) => {
+            result[header] = values[columnIndex] ?? null;
+            return result;
+          }, {} as Record<string, unknown>);
+          Object.defineProperty(row, '__rowNum__', {
+            value: headerRowIndex + index + 1,
+            enumerable: false,
+          });
+          return row;
+        });
       } else {
         json = XLSX.utils.sheet_to_json(sheet, { defval: null }) as Record<string, unknown>[];
       }
+      attachDateTimeFormats(json, sheet, headerRowIndex);
 
       // STEP 5: Mapping data
       const getColumn = (row: any, names: string[]) => {
@@ -160,11 +206,11 @@ export default function DashboardPage() {
           : null;
       };
 
-      const rawData = json.map((row: any) => {
+      const rawData = json.map((row: any, index: number) => {
         const sto = getStoCode(row);
         const mappedLocation = stoMapping[sto.toUpperCase()];
 
-        return {
+        const mappedRow = {
           WONUM: String(getColumn(row, ['WONUM']) || ''),
           WORKORDER: String(getColumn(row, ['WORKORDER']) || ''),
           NoOrder: String(getColumn(row, ['NO ORDER', 'NO_ORDER', 'WONUM']) || ''),
@@ -187,6 +233,16 @@ export default function DashboardPage() {
           WORKZONE: isEbisUpload ? sto : '',
           STO: sto,
         };
+        Object.defineProperty(mappedRow, DATE_TIME_COLUMNS_KEY, {
+          value: ((json[index][DATE_TIME_COLUMNS_KEY] as string[] | undefined) || []).map((header) => {
+            if (header === 'DATE_CREATED') return 'DATECREATED';
+            if (header === 'STATUS_DATE') return 'STATUSDATE';
+            if (header === 'TANGGAL_MANJA') return 'TGL_MANJA';
+            return header;
+          }),
+          enumerable: false,
+        });
+        return mappedRow;
       });
 
       let rawDataToStore = rawData;
@@ -430,8 +486,15 @@ export default function DashboardPage() {
             <div className="mb-4 flex justify-end">
               <button
                 type="button"
-                onClick={() => downloadMappedExcel(currentUploadedRows, `Report_${currentKey}`)}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+                onClick={() => downloadMappedExcel(
+                  currentUploadedRows,
+                  `Report_${currentKey}`,
+                  currentKey.startsWith('indihome-') ? 'indihome' : currentKey === 'indibiz-ao-pda' ? 'indibiz' : undefined,
+                  currentKey === 'indibiz-ao-pda'
+                    ? uploadedAtPerCategory[currentKey] || Date.now()
+                    : Date.now()
+                )}
+                className="report-action report-action--download"
               >
                 <FaDownload size={14} />
                 Download Excel

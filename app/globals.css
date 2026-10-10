@@ -81,6 +81,67 @@ label,
   -webkit-tap-highlight-color: transparent;
 }
 
+.report-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.12);
+  cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.report-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgb(15 23 42 / 0.16);
+}
+
+.report-action:active {
+  transform: translateY(0);
+}
+
+.report-action:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.report-action--primary,
+.report-action--export,
+.report-action--copy,
+.report-action--download {
+  background: #102b49;
+}
+
+.report-action--primary:hover,
+.report-action--export:hover,
+.report-action--copy:hover,
+.report-action--download:hover {
+  background: #091e35;
+}
+
+.report-action--upload {
+  background: #0e7490;
+}
+
+.report-action--upload:hover {
+  background: #155e75;
+}
+
+.report-action--process {
+  background: #1d4ed8;
+}
+
+.report-action--process:hover {
+  background: #1e40af;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

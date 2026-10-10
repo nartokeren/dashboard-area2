@@ -147,7 +147,7 @@ export default function TabelSisaOrder({
         {exportSection && (
           <button
             onClick={() => exportSection('tabel-sisaorder-h1', 'Sisa_Order_H1')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-1 px-3 rounded-lg transition"
+            className="report-action report-action--export"
           >
             🖼️ Export PNG
           </button>
