@@ -175,13 +175,18 @@ const mergeCounts = (target: ReportCounts, source: ReportCounts) => {
   target.ps += source.ps;
 };
 
-const formatPercent = (ps: number, totalPi: number) => {
-  return totalPi === 0 ? '0.00%' : `${((ps / totalPi) * 100).toFixed(2)}%`;
+type PsPiCounts = Pick<ReportCounts, 'ps' | 'totalPi' | 'totalFallout' | 'actcomp'>;
+
+const getPsPiPercentage = ({ ps, totalPi, totalFallout, actcomp }: PsPiCounts) => {
+  const denominator = totalPi + totalFallout + actcomp + ps;
+  return denominator === 0 ? 0 : (ps / denominator) * 100;
 };
 
-const meetsTarget = (ps: number, totalPi: number) => {
-  return totalPi > 0 && (ps / totalPi) * 100 >= 95;
+const formatPercent = (counts: PsPiCounts) => {
+  return `${getPsPiPercentage(counts).toFixed(2)}%`;
 };
+
+const meetsTarget = (counts: PsPiCounts) => getPsPiPercentage(counts) >= 95;
 
 const manjaCategoryStyles: Record<ManjaCategory, { label: string; cell: string; header: string }> = {
   exp: {
@@ -251,7 +256,7 @@ const ReportDataCells = ({
       className={`${subtotal || grandTotal ? '' : color} ${bandClass}`}
     />
   );
-  const achieved = meetsTarget(counts.ps, counts.totalPi);
+  const achieved = meetsTarget(counts);
 
   return (
     <>
@@ -286,7 +291,7 @@ const ReportDataCells = ({
               ? 'text-emerald-700'
               : 'text-rose-700'
       }`}>
-        {formatPercent(counts.ps, counts.totalPi)}
+        {formatPercent(counts)}
       </td>
     </>
   );
@@ -399,9 +404,9 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
     '',
     'BRANCH / SURVEY OPEN / INVALID SURVEY / PI / FALLOUT / PS / PS/PI (%)',
     ...summaryRows.map(({ branch, counts }) =>
-      `${branch} / ${counts.totalSurveyOpen} / ${counts.totalInvalidSurvey} / ${counts.totalPi} / ${counts.totalFallout} / *${counts.ps}* / ${formatPercent(counts.ps, counts.totalPi)}`
+      `${branch} / ${counts.totalSurveyOpen} / ${counts.totalInvalidSurvey} / ${counts.totalPi} / ${counts.totalFallout} / *${counts.ps}* / ${formatPercent(counts)}`
     ),
-    `AREA 2 / ${totals.totalSurveyOpen} / ${totals.totalInvalidSurvey} / ${totals.totalPi} / ${totals.totalFallout} / *${totals.ps}* / ${formatPercent(totals.ps, totals.totalPi)}`,
+    `AREA 2 / ${totals.totalSurveyOpen} / ${totals.totalInvalidSurvey} / ${totals.totalPi} / ${totals.totalFallout} / *${totals.ps}* / ${formatPercent(totals)}`,
   ].join('\n'), [asOf, summaryRows, totals]);
 
   const surveyOpenDetails = useMemo(() => {
