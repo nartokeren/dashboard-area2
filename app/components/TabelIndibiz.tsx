@@ -414,7 +414,7 @@ export default function TabelIndibiz({ rows, asOf, handleFileUpload }: TabelIndi
       .filter((row) =>
         String(readColumn(row, 'KELOMPOK_STATUS') ?? '').trim().toUpperCase() === 'SURVEY_NEW_MANJA' &&
         !String(readColumn(row, 'STATUS_RESUME') ?? '').toUpperCase().includes('INVALID') &&
-        ['MANJA HI', 'MANJA H+'].includes(getIndibizManjaCategory(readColumn(row, 'TGL_MANJA'), asOf))
+        ['MANJA EXP', 'MANJA HI', 'MANJA H+'].includes(getIndibizManjaCategory(readColumn(row, 'TGL_MANJA'), asOf))
       )
       .map((row) => {
         const sto = getStoCode(row);
