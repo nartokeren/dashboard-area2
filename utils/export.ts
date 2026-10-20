@@ -4,7 +4,7 @@ import { addMappingColumns } from '@/constants/stoMapping';
 import { getIndibizManjaCategory } from '@/utils/manja';
 import { parseDate } from '@/utils/date';
 
-type DownloadClassification = 'indihome' | 'indibiz';
+type DownloadClassification = 'indihome' | 'indibiz' | 'ebis-olo' | 'ebis-vula';
 
 const normalizedColumn = (value: string) => value.trim().toUpperCase().replace(/\s+/g, '_');
 
@@ -128,6 +128,38 @@ const getIndihomeManjaCategory = (row: Record<string, unknown>, now: Date) => {
   return 'MANJA H+';
 };
 
+const getEbisOrderAging = (
+  row: Record<string, unknown>,
+  classification: Extract<DownloadClassification, 'ebis-olo' | 'ebis-vula'>,
+  asOf: number
+) => {
+  const createdAt = parseDate(getColumn(row, 'DATECREATED') ?? getColumn(row, 'DATE_CREATED'));
+  if (!createdAt) {
+    return {
+      'USIA ORDER': '',
+      AGING: 'TANGGAL ORDER INVALID',
+    };
+  }
+
+  const ageInDays = Math.max(0, (asOf - createdAt.getTime()) / 86400000);
+  const wholeAgeInDays = Math.floor(ageInDays);
+  const aging = classification === 'ebis-olo'
+    ? ageInDays < 7 ? '0-7 Hari'
+      : ageInDays < 14 ? '7-14 Hari'
+        : ageInDays <= 20 ? '14-20 Hari'
+          : '>20 Hari'
+    : ageInDays < 3 ? '0-3 Hari'
+      : ageInDays < 7 ? '3-7 Hari'
+        : ageInDays < 14 ? '7-14 Hari'
+          : ageInDays <= 30 ? '14-30 Hari'
+            : '>30 Hari';
+
+  return {
+    'USIA ORDER': wholeAgeInDays,
+    AGING: aging,
+  };
+};
+
 const addDownloadClassifications = (
   rows: Record<string, unknown>[],
   classification: DownloadClassification,
@@ -161,14 +193,17 @@ const addDownloadClassifications = (
               })()
             : '',
         };
+    const outputColumns = classification === 'ebis-olo' || classification === 'ebis-vula'
+      ? getEbisOrderAging(sourceRow, classification, asOf)
+      : columns;
 
     const [branch, region, serviceArea, ...uploadedFields] = Object.entries(mappedRow);
-    const classificationNames = new Set(Object.keys(columns).map(normalizedColumn));
+    const classificationNames = new Set(Object.keys(outputColumns).map(normalizedColumn));
     const outputRow = Object.fromEntries([
       branch,
       region,
       serviceArea,
-      ...Object.entries(columns),
+      ...Object.entries(outputColumns),
       ...uploadedFields.filter(([header]) => !classificationNames.has(normalizedColumn(header))),
     ]);
     return outputRow;

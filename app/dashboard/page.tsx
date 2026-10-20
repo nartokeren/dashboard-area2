@@ -489,7 +489,13 @@ export default function DashboardPage() {
                 onClick={() => downloadMappedExcel(
                   currentUploadedRows,
                   `Report_${currentKey}`,
-                  currentKey.startsWith('indihome-') ? 'indihome' : currentKey === 'indibiz-ao-pda' ? 'indibiz' : undefined,
+                  currentKey.startsWith('indihome-')
+                    ? 'indihome'
+                    : currentKey === 'indibiz-ao-pda'
+                      ? 'indibiz'
+                      : currentKey === 'ebis-olo' || currentKey === 'ebis-vula'
+                        ? currentKey
+                        : undefined,
                   currentKey === 'indibiz-ao-pda'
                     ? uploadedAtPerCategory[currentKey] || Date.now()
                     : Date.now()
