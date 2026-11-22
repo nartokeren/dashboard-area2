@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { isSameDay } from 'date-fns';
+import { isSameDay, startOfDay, subDays } from 'date-fns';
 import { Chart as ChartJS, CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 
@@ -62,19 +62,36 @@ export default function TabelPerJam({
     return jamCounts;
   };
 
-  // --- RE: Semua status, DATECREATED hari ini ---
+  const referenceDate = dateTo ? startOfDay(new Date(`${dateTo}T00:00:00`)) : startOfDay(today);
+  const h1ReferenceDate = subDays(referenceDate, 1);
+  const effectiveHour = isSameDay(referenceDate, today) ? currentHour : 23;
+
+  // --- RE: Semua status, DATECREATED pada tanggal referensi ---
   const reData = filteredData.filter((row: any) => {
     const dateCreated = parseDate(row['DATECREATED']);
     if (!dateCreated) return false;
-    return isSameDay(dateCreated, today);
+    return isSameDay(dateCreated, referenceDate);
   });
 
-  // --- PS: Hanya COMPWORK, STATUSDATE hari ini ---
+  // --- PS: Hanya COMPWORK, STATUSDATE pada tanggal referensi ---
   const psData = filteredData.filter((row: any) => {
     const statusDate = parseDate(row['STATUSDATE']);
     if (!statusDate) return false;
     if (row['STATUS'] !== 'COMPWORK') return false;
-    return isSameDay(statusDate, today);
+    return isSameDay(statusDate, referenceDate);
+  });
+
+  const reH1Data = filteredData.filter((row: any) => {
+    const dateCreated = parseDate(row['DATECREATED']);
+    if (!dateCreated) return false;
+    return isSameDay(dateCreated, h1ReferenceDate);
+  });
+
+  const psH1Data = filteredData.filter((row: any) => {
+    const statusDate = parseDate(row['STATUSDATE']);
+    if (!statusDate) return false;
+    if (row['STATUS'] !== 'COMPWORK') return false;
+    return isSameDay(statusDate, h1ReferenceDate);
   });
 
   const branchGroups = new Map<string, any[]>();
@@ -87,14 +104,20 @@ export default function TabelPerJam({
   const jamResult: any[] = [];
   branchGroups.forEach((reRows, branch) => {
     const psRows = psData.filter((row: any) => (row['DISTRICT_TIF'] || 'UNKNOWN') === branch);
+    const reH1Rows = reH1Data.filter((row: any) => (row['DISTRICT_TIF'] || 'UNKNOWN') === branch);
+    const psH1Rows = psH1Data.filter((row: any) => (row['DISTRICT_TIF'] || 'UNKNOWN') === branch);
     const reJam = calculateJamData(reRows, true);
     const psJam = calculateJamData(psRows, false);
-    
+    const reJamH1 = calculateJamData(reH1Rows, true);
+    const psJamH1 = calculateJamData(psH1Rows, false);
+
     jamResult.push({
       branch,
       regional: regionalMapping[branch] || 'LAINNYA',
       reJam,
       psJam,
+      reJamH1,
+      psJamH1,
     });
   });
 
@@ -116,10 +139,14 @@ export default function TabelPerJam({
 
   let grandTotalRE: any = {};
   let grandTotalPS: any = {};
+  let grandTotalREH1: any = {};
+  let grandTotalPSH1: any = {};
   const jamRange = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
   jamRange.forEach(j => {
     grandTotalRE[j] = 0;
     grandTotalPS[j] = 0;
+    grandTotalREH1[j] = 0;
+    grandTotalPSH1[j] = 0;
   });
 
   regionalOrder.forEach(reg => {
@@ -128,17 +155,25 @@ export default function TabelPerJam({
 
     const subTotalRE: any = {};
     const subTotalPS: any = {};
+    const subTotalREH1: any = {};
+    const subTotalPSH1: any = {};
     jamRange.forEach(j => {
       subTotalRE[j] = 0;
       subTotalPS[j] = 0;
+      subTotalREH1[j] = 0;
+      subTotalPSH1[j] = 0;
     });
 
     items.forEach(item => {
       jamRange.forEach(j => {
         subTotalRE[j] += item.reJam[j] || 0;
         subTotalPS[j] += item.psJam[j] || 0;
+        subTotalREH1[j] += item.reJamH1[j] || 0;
+        subTotalPSH1[j] += item.psJamH1[j] || 0;
         grandTotalRE[j] += item.reJam[j] || 0;
         grandTotalPS[j] += item.psJam[j] || 0;
+        grandTotalREH1[j] += item.reJamH1[j] || 0;
+        grandTotalPSH1[j] += item.psJamH1[j] || 0;
       });
       finalJamData.push({ ...item, isSubTotal: false });
     });
@@ -149,6 +184,8 @@ export default function TabelPerJam({
       isSubTotal: true,
       reJam: subTotalRE,
       psJam: subTotalPS,
+      reJamH1: subTotalREH1,
+      psJamH1: subTotalPSH1,
     });
   });
 
@@ -158,6 +195,8 @@ export default function TabelPerJam({
     isArea2: true,
     reJam: grandTotalRE,
     psJam: grandTotalPS,
+    reJamH1: grandTotalREH1,
+    psJamH1: grandTotalPSH1,
   });
 
   if (filteredData.length === 0 || finalJamData.length === 0) {
@@ -170,16 +209,32 @@ export default function TabelPerJam({
     datasets: [
       {
         label: 'RE',
-        data: chartHours.map((hour) => hour <= currentHour ? grandTotalRE[hour] : null),
+        data: chartHours.map((hour) => hour <= effectiveHour ? grandTotalRE[hour] : null),
         borderColor: '#2563eb',
         backgroundColor: '#2563eb',
         tension: 0.25,
       },
       {
         label: 'PS',
-        data: chartHours.map((hour) => hour <= currentHour ? grandTotalPS[hour] : null),
+        data: chartHours.map((hour) => hour <= effectiveHour ? grandTotalPS[hour] : null),
         borderColor: '#16a34a',
         backgroundColor: '#16a34a',
+        tension: 0.25,
+      },
+      {
+        label: 'RE H-1',
+        data: chartHours.map((hour) => hour <= effectiveHour ? grandTotalREH1[hour] : null),
+        borderColor: '#93c5fd',
+        backgroundColor: '#93c5fd',
+        borderDash: [5, 5],
+        tension: 0.25,
+      },
+      {
+        label: 'PS H-1',
+        data: chartHours.map((hour) => hour <= effectiveHour ? grandTotalPSH1[hour] : null),
+        borderColor: '#86efac',
+        backgroundColor: '#86efac',
+        borderDash: [5, 5],
         tension: 0.25,
       },
     ],
@@ -198,8 +253,8 @@ export default function TabelPerJam({
       },
     },
   };
-  const deviationPeriodLabel = currentHour >= 10
-    ? `(${String(currentHour - 1).padStart(2, '0')}:00 vs ${String(currentHour - 2).padStart(2, '0')}:00)`
+  const deviationPeriodLabel = effectiveHour >= 10
+    ? `(${String(effectiveHour - 1).padStart(2, '0')}:00 vs ${String(effectiveHour - 2).padStart(2, '0')}:00)`
     : '(belum tersedia)';
 
   // ============================================
@@ -209,7 +264,7 @@ export default function TabelPerJam({
     <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mb-6 relative" id="table-jam-container">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-sm font-bold text-slate-800">
-          📋 Monitoring Pergerakan Order New Sales Indihome per-Jam (Hari Ini)
+          📋 Monitoring Pergerakan Order New Sales Indihome per-Jam ({isSameDay(referenceDate, today) ? 'Hari Ini' : referenceDate.toLocaleDateString('id-ID')})
         </h2>
       </div>
       <div className="w-max min-w-full">
@@ -240,6 +295,8 @@ export default function TabelPerJam({
             <th rowSpan={2} className="w-[88px] min-w-[88px] max-w-[88px] whitespace-normal break-words border border-slate-600 bg-slate-700 p-1 text-center font-bold leading-tight">
               DEV PS/RE (%)<br />{deviationPeriodLabel}
             </th>
+            <th rowSpan={2} className="border border-slate-600 p-1 text-center font-bold bg-slate-700">PS/RE H-1</th>
+            <th rowSpan={2} className="border border-slate-600 p-1 text-center font-bold bg-slate-700">DEV PS/RE<br />H-1</th>
             <th rowSpan={2} className="border border-slate-600 p-1 text-center font-bold bg-slate-700">PS/RE</th>
           </tr>
           <tr className="bg-slate-600 text-white">
@@ -292,11 +349,15 @@ export default function TabelPerJam({
               if (isSubTotal) bgColor = 'bg-blue-100';
               if (isArea2) bgColor = 'bg-slate-800 text-white';
 
-              const totalRE = currentHour >= 8 ? item.reJam?.[currentHour] ?? 0 : 0;
-              const totalPS = currentHour >= 8 ? item.psJam?.[currentHour] ?? 0 : 0;
+              const totalRE = effectiveHour >= 8 ? item.reJam?.[effectiveHour] ?? 0 : 0;
+              const totalPS = effectiveHour >= 8 ? item.psJam?.[effectiveHour] ?? 0 : 0;
               const psRePercent = totalRE > 0 ? (totalPS / totalRE) * 100 : 0;
-              const comparisonHour = currentHour - 2;
-              const deviationHour = currentHour - 1;
+              const totalREH1 = effectiveHour >= 8 ? item.reJamH1?.[effectiveHour] ?? 0 : 0;
+              const totalPSH1 = effectiveHour >= 8 ? item.psJamH1?.[effectiveHour] ?? 0 : 0;
+              const psRePercentH1 = totalREH1 > 0 ? (totalPSH1 / totalREH1) * 100 : 0;
+              const psReGapH1 = psRePercent - psRePercentH1;
+              const comparisonHour = effectiveHour - 2;
+              const deviationHour = effectiveHour - 1;
               const comparisonRE = item.reJam?.[comparisonHour] ?? 0;
               const comparisonPS = item.psJam?.[comparisonHour] ?? 0;
               const deviationRE = item.reJam?.[deviationHour] ?? 0;
@@ -326,8 +387,8 @@ export default function TabelPerJam({
                     </>
                   )}
                   {[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23].map((jam) => {
-                    const reValue = jam <= currentHour ? (item.reJam?.[jam] ?? 0) : '';
-                    const psValue = jam <= currentHour ? (item.psJam?.[jam] ?? 0) : '';
+                    const reValue = jam <= effectiveHour ? (item.reJam?.[jam] ?? 0) : '';
+                    const psValue = jam <= effectiveHour ? (item.psJam?.[jam] ?? 0) : '';
                     return (
                       <React.Fragment key={`${item.idx}-${jam}`}>
                         <td key={`${item.idx}-${jam}-re`} className={`border border-slate-300 p-1 text-center font-mono ${isArea2 ? 'text-white' : 'text-blue-600 font-semibold'}`}>
@@ -340,16 +401,22 @@ export default function TabelPerJam({
                     );
                   })}
                   <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${isArea2 ? 'text-white' : deltaClass(reDeviation)}`}>
-                    {currentHour < 10 ? '-' : formatCountDelta(reDeviation)}
+                    {effectiveHour < 10 ? '-' : formatCountDelta(reDeviation)}
                   </td>
                   <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${isArea2 ? 'text-white' : deltaClass(psDeviation)}`}>
-                    {currentHour < 10 ? '-' : formatCountDelta(psDeviation)}
+                    {effectiveHour < 10 ? '-' : formatCountDelta(psDeviation)}
                   </td>
                   <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${isArea2 ? 'text-white' : deltaClass(psReDeviation)}`}>
-                    {currentHour < 10 ? '-' : `${psReDeviation > 0 ? '+' : ''}${psReDeviation.toFixed(2)}%`}
+                    {effectiveHour < 10 ? '-' : `${psReDeviation > 0 ? '+' : ''}${psReDeviation.toFixed(2)}%`}
+                  </td>
+                  <td className={`border border-slate-300 p-1 text-center font-mono font-bold ${isArea2 ? 'text-white' : (psRePercentH1 >= 85 ? 'text-green-600' : 'text-red-600')}`}>
+                    {effectiveHour < 8 ? '-' : psRePercentH1.toFixed(2) + '%'}
+                  </td>
+                  <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${isArea2 ? 'text-white' : deltaClass(psReGapH1)}`}>
+                    {effectiveHour < 8 ? '-' : `${psReGapH1 > 0 ? '+' : ''}${psReGapH1.toFixed(2)}%`}
                   </td>
                   <td className={`border border-slate-300 p-1 text-center font-mono font-bold ${isArea2 ? 'text-white' : (psRePercent >= 85 ? 'text-green-600' : 'text-red-600')}`}>
-                    {currentHour < 8 ? '-' : psRePercent.toFixed(2) + '%'}
+                    {effectiveHour < 8 ? '-' : psRePercent.toFixed(2) + '%'}
                   </td>
                 </tr>
               );

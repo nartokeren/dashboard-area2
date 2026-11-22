@@ -2,6 +2,10 @@
 
 import React, { useState, useRef } from 'react';
 import { startOfDay, endOfDay, isBefore, isAfter, subDays, format } from 'date-fns';
+import { Chart as ChartJS, CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend } from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend);
 
 interface TabelPsReH1Props {
   filteredData: any[];
@@ -110,6 +114,47 @@ export default function TabelPsReH1({
       regionalMap.get(regional)!.psH1Full++;
     });
 
+    // Hitung akumulasi RE/PS per jam untuk tabel H-1.
+    const jamRange = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
+    const calculatePerJam = (rows: any[], isRE: boolean) => {
+      const hourly: { [key: number]: number } = {};
+      jamRange.forEach((hour) => { hourly[hour] = 0; });
+
+      rows.forEach((row: any) => {
+        const date = parseDate(isRE ? row['DATECREATED'] : row['STATUSDATE']);
+        if (!date) return;
+        for (let hour = 8; hour <= 23; hour++) {
+          if (date.getHours() <= hour) {
+            hourly[hour]++;
+            break;
+          }
+        }
+      });
+
+      const cumulative: { [key: number]: number } = {};
+      let total = 0;
+      jamRange.forEach((hour) => {
+        cumulative[hour] = total + hourly[hour];
+        total = cumulative[hour];
+      });
+      return cumulative;
+    };
+
+    const h1PerJamBranchMap = new Map<string, { regional: string; reJam: any; psJam: any }>();
+    const h1Branches = new Set<string>();
+    reH1Full.forEach((row: any) => h1Branches.add(row['DISTRICT_TIF'] || 'UNKNOWN'));
+    psH1Full.forEach((row: any) => h1Branches.add(row['DISTRICT_TIF'] || 'UNKNOWN'));
+
+    h1Branches.forEach((branch) => {
+      const reRows = reH1Full.filter((row: any) => (row['DISTRICT_TIF'] || 'UNKNOWN') === branch);
+      const psRows = psH1Full.filter((row: any) => (row['DISTRICT_TIF'] || 'UNKNOWN') === branch);
+      h1PerJamBranchMap.set(branch, {
+        regional: regionalMapping[branch] || 'LAINNYA',
+        reJam: calculatePerJam(reRows, true),
+        psJam: calculatePerJam(psRows, false),
+      });
+    });
+
     // Calculate per branch
     const branchMap = new Map<string, { reH1Before17: number; reH1Full: number; psH1Full: number }>();
 
@@ -192,6 +237,29 @@ export default function TabelPsReH1({
 
     const branchGrandTotalPsReH1 = branchGrandTotalReFullDay > 0 ? (branchGrandTotalPsFullDay / branchGrandTotalReFullDay) * 100 : 0;
 
+    const h1PerJamRows = Array.from(h1PerJamBranchMap.entries()).map(([branch, values]) => ({
+      branch,
+      ...values,
+    })).sort((a, b) => {
+      const regA = regionalOrder.indexOf(a.regional);
+      const regB = regionalOrder.indexOf(b.regional);
+      if (regA !== regB) return regA - regB;
+      return a.branch.localeCompare(b.branch);
+    });
+
+    const h1GrandRE: any = {};
+    const h1GrandPS: any = {};
+    jamRange.forEach((hour) => {
+      h1GrandRE[hour] = 0;
+      h1GrandPS[hour] = 0;
+    });
+    h1PerJamRows.forEach((row) => {
+      jamRange.forEach((hour) => {
+        h1GrandRE[hour] += row.reJam[hour] || 0;
+        h1GrandPS[hour] += row.psJam[hour] || 0;
+      });
+    });
+
     return {
       h1DateTo: format(h1DateTo, 'yyyy-MM-dd'),
       regionalArray,
@@ -204,6 +272,10 @@ export default function TabelPsReH1({
       branchGrandTotalReFullDay,
       branchGrandTotalPsFullDay,
       branchGrandTotalPsReH1,
+      h1PerJamRows,
+      h1GrandRE,
+      h1GrandPS,
+      jamRange,
     };
   };
 
@@ -345,6 +417,101 @@ export default function TabelPsReH1({
     <div className="bg-white p-3 rounded-lg shadow-md overflow-x-auto mb-6 relative" ref={tableRef}>
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-sm font-bold text-slate-800">📋 Fulfillment Endstate PS/RE H-1</h2>
+      </div>
+
+      {/* TABEL PS/RE PER JAM H-1 */}
+      <div className="mb-6">
+        <h3 className="text-sm font-bold text-slate-800 mb-2">📋 Monitoring Pergerakan Order per-Jam H-1 ({data.h1DateTo})</h3>
+        <div className="mb-4 w-full rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="h-72 min-h-72">
+            <Line
+              data={{
+                labels: data.jamRange.map((hour: number) => `${String(hour).padStart(2, '0')}:00`),
+                datasets: [
+                  { label: 'RE', data: data.jamRange.map((hour: number) => data.h1GrandRE[hour]), borderColor: '#2563eb', backgroundColor: '#2563eb', tension: 0.25 },
+                  { label: 'PS', data: data.jamRange.map((hour: number) => data.h1GrandPS[hour]), borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.25 },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' as const }, tooltip: { mode: 'index' as const, intersect: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+              }}
+            />
+          </div>
+        </div>
+        <table className="w-max min-w-full text-[10px] border-collapse">
+          <thead>
+            <tr className="bg-slate-800 text-white">
+              <th rowSpan={2} className="border border-slate-600 p-1 text-left">REGIONAL</th>
+              <th rowSpan={2} className="border border-slate-600 p-1 text-left">BRANCH</th>
+              {data.jamRange.map((hour: number) => (
+                <th key={hour} colSpan={2} className="border border-slate-600 p-1 text-center bg-slate-700">{String(hour).padStart(2, '0')}:00</th>
+              ))}
+              <th rowSpan={2} className="border border-slate-600 p-1 text-center bg-slate-700">PS/RE</th>
+            </tr>
+            <tr className="bg-slate-600 text-white">
+              {data.jamRange.map((hour: number) => (
+                <React.Fragment key={`h1-header-${hour}`}>
+                  <th className="border border-slate-500 p-0.5 text-center">RE</th>
+                  <th className="border border-slate-500 p-0.5 text-center">PS</th>
+                </React.Fragment>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(() => {
+              const regionalOrder = ['BANTEN', 'EASTERN JABOTABEK', 'JAKARTA', 'JAWA BARAT'];
+              const subtotalRows: any[] = [];
+              regionalOrder.forEach((regional) => {
+                const rows = data.h1PerJamRows.filter((row: any) => row.regional === regional);
+                if (rows.length === 0) return;
+                rows.forEach((row: any) => subtotalRows.push(row));
+                const reSubtotal: any = {};
+                const psSubtotal: any = {};
+                data.jamRange.forEach((hour: number) => {
+                  reSubtotal[hour] = rows.reduce((sum: number, row: any) => sum + (row.reJam[hour] || 0), 0);
+                  psSubtotal[hour] = rows.reduce((sum: number, row: any) => sum + (row.psJam[hour] || 0), 0);
+                });
+                subtotalRows.push({ branch: 'SUB TOTAL', regional, reJam: reSubtotal, psJam: psSubtotal, isSubtotal: true });
+              });
+              subtotalRows.push({ branch: 'AREA 2', regional: 'GRAND TOTAL', reJam: data.h1GrandRE, psJam: data.h1GrandPS, isArea2: true });
+
+              let lastRegional = '';
+              let regionalCount = 0;
+              return subtotalRows.map((row: any, index: number) => {
+                if (!row.isArea2 && row.regional !== lastRegional) {
+                  lastRegional = row.regional;
+                  regionalCount = subtotalRows.filter((candidate: any) => !candidate.isArea2 && candidate.regional === row.regional).length;
+                }
+                const reEnd = row.reJam?.[23] || 0;
+                const psEnd = row.psJam?.[23] || 0;
+                const psRe = reEnd > 0 ? (psEnd / reEnd) * 100 : 0;
+                const showRegional = !row.isArea2 && row.regional !== '' && subtotalRows[index - 1]?.regional !== row.regional;
+                return (
+                  <tr key={`${row.regional}-${row.branch}-${index}`} className={row.isArea2 ? 'bg-slate-800 text-white' : row.isSubtotal ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    {row.isArea2 ? (
+                      <td colSpan={2} className="border border-slate-300 p-1 font-bold text-center text-white">AREA 2</td>
+                    ) : (
+                      <>
+                        {showRegional && <td rowSpan={regionalCount} className="border border-slate-300 p-1 font-bold">{row.regional}</td>}
+                        <td className="border border-slate-300 p-1 font-semibold">{row.isSubtotal ? 'SUB TOTAL' : row.branch}</td>
+                      </>
+                    )}
+                    {data.jamRange.map((hour: number) => (
+                      <React.Fragment key={`${index}-${hour}`}>
+                        <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${row.isArea2 ? 'text-white' : 'text-blue-600'}`}>{row.reJam?.[hour] ?? 0}</td>
+                        <td className={`border border-slate-300 p-1 text-center font-mono font-semibold ${row.isArea2 ? 'text-white' : 'text-green-600'}`}>{row.psJam?.[hour] ?? 0}</td>
+                      </React.Fragment>
+                    ))}
+                    <td className={`border border-slate-300 p-1 text-center font-mono font-bold ${row.isArea2 ? 'text-white' : psRe >= 85 ? 'text-green-600' : 'text-red-600'}`}>{psRe.toFixed(2)}%</td>
+                  </tr>
+                );
+              });
+            })()}
+          </tbody>
+        </table>
       </div>
 
       {/* REGIONAL TABLE */}
