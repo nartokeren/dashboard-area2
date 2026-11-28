@@ -42,6 +42,7 @@ export default function TabelFulfillment({
   const summaryTableRef = useRef<HTMLTableElement>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [morningSummary, setMorningSummary] = useState('');
+  const [regionalSummary, setRegionalSummary] = useState('');
 
   const getKategoriManja = (row: any) => {
     const status = row['STATUS'] || '';
@@ -377,6 +378,31 @@ export default function TabelFulfillment({
     setExpandedRows(new Set());
     setModalOpen(true);
     setMorningSummary(regionalName ? '' : generateMorningManjaSummary());
+    if (regionalName && summaryData.length > 0) {
+      const regional = summaryData[0];
+      const lines = [
+        `*Summary Order PI Region ${regionalName}*`,
+        'BRANCH / MANJA EXP / MANJA HI / MANJA H+ / NON MANJA',
+        ...[...regional.branches]
+          .sort((first: any, second: any) => first.branch.localeCompare(second.branch))
+          .flatMap((branch: any, branchIndex: number, branches: any[]) => {
+            const separator = branchIndex > 0 ? [''] : [];
+            const branchLine = `${branch.branch} / ${branch.manjaExp} / ${branch.manjaHI} / ${branch.manjaHPlus} / ${branch.nonManja}`;
+            const serviceAreaLines = [...branch.serviceAreas]
+              .sort((first: any, second: any) => first.serviceArea.localeCompare(second.serviceArea))
+              .filter((serviceArea: any) => serviceArea.serviceArea && serviceArea.serviceArea !== 'UNKNOWN')
+              .map((serviceArea: any) =>
+                `${serviceArea.serviceArea} / ${serviceArea.manjaExp} / ${serviceArea.manjaHI} / ${serviceArea.manjaHPlus} / ${serviceArea.nonManja}`
+              );
+            return [...separator, branchLine, ...serviceAreaLines];
+          }),
+        '',
+        `${regionalName} / ${regional.manjaExp} / ${regional.manjaHI} / ${regional.manjaHPlus} / ${regional.nonManja}`,
+      ];
+      setRegionalSummary(lines.join('\n'));
+    } else {
+      setRegionalSummary('');
+    }
   };
 
   const openModalDetail = (branchName: string) => {
@@ -969,6 +995,18 @@ export default function TabelFulfillment({
 
               {modalType === 'summary' && (
                 <>
+                {regionalSummary && (
+                  <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                    <p className="whitespace-pre-wrap font-mono text-xs leading-5 text-slate-700">{regionalSummary}</p>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(regionalSummary)}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    >
+                      Salin summary
+                    </button>
+                  </div>
+                )}
                 {morningSummary && (
                   <div className="mb-4 rounded-xl border border-cyan-100 bg-cyan-50 p-4">
                     <p className="whitespace-pre-wrap font-mono text-xs leading-5 text-slate-700">{morningSummary}</p>

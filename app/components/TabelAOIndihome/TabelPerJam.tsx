@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { isSameDay, startOfDay, subDays } from 'date-fns';
 import { Chart as ChartJS, CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend } from 'chart.js';
 import { Line } from 'react-chartjs-2';
@@ -30,6 +30,8 @@ export default function TabelPerJam({
   regionalMapping,
   parseDate,
 }: TabelPerJamProps) {
+  const [copyFeedback, setCopyFeedback] = useState('');
+
   // ============================================
   // HITUNG DATA PER JAM (HARI INI)
   // ============================================
@@ -257,6 +259,75 @@ export default function TabelPerJam({
     ? `(${String(effectiveHour - 1).padStart(2, '0')}:00 vs ${String(effectiveHour - 2).padStart(2, '0')}:00)`
     : '(belum tersedia)';
 
+  const branchStats = finalJamData
+    .filter((item: any) => !item.isSubTotal && !item.isArea2)
+    .map((item: any) => {
+      const re = effectiveHour >= 8 ? item.reJam?.[effectiveHour] ?? 0 : 0;
+      const ps = effectiveHour >= 8 ? item.psJam?.[effectiveHour] ?? 0 : 0;
+      const reH1 = effectiveHour >= 8 ? item.reJamH1?.[effectiveHour] ?? 0 : 0;
+      const psH1 = effectiveHour >= 8 ? item.psJamH1?.[effectiveHour] ?? 0 : 0;
+      return {
+        branch: item.branch,
+        re,
+        ps,
+        psRe: re > 0 ? (ps / re) * 100 : 0,
+        psReH1: reH1 > 0 ? (psH1 / reH1) * 100 : 0,
+      };
+    });
+
+  const highestBranch = branchStats.length > 0
+    ? [...branchStats].sort((first, second) => second.psRe - first.psRe)[0]
+    : null;
+  const lowestBranch = branchStats.length > 0
+    ? [...branchStats].sort((first, second) => first.psRe - second.psRe)[0]
+    : null;
+  const area2RE = effectiveHour >= 8 ? grandTotalRE[effectiveHour] ?? 0 : 0;
+  const area2PS = effectiveHour >= 8 ? grandTotalPS[effectiveHour] ?? 0 : 0;
+  const area2PSRE = area2RE > 0 ? (area2PS / area2RE) * 100 : 0;
+  const area2REH1 = effectiveHour >= 8 ? grandTotalREH1[effectiveHour] ?? 0 : 0;
+  const area2PSH1 = effectiveHour >= 8 ? grandTotalPSH1[effectiveHour] ?? 0 : 0;
+  const area2PSREH1 = area2REH1 > 0 ? (area2PSH1 / area2REH1) * 100 : 0;
+  const psReDifference = area2PSRE - area2PSREH1;
+  const psReDifferenceText = psReDifference > 0
+    ? `naik ${psReDifference.toFixed(2)} poin`
+    : psReDifference < 0
+      ? `turun ${Math.abs(psReDifference).toFixed(2)} poin`
+      : 'sama';
+
+  let encouragement = '';
+  if (area2PSRE < 60) {
+    encouragement = 'Pencapaian PS/RE masih jauh dari target, sehingga tim lapangan perlu segera menutup hambatan, mempercepat penyelesaian pekerjaan, dan menjaga arus validasi agar kondisi hari ini tidak tertinggal lebih dalam.';
+  } else if (area2PSRE < 85) {
+    encouragement = 'Pencapaian PS/RE masih perlu diperkuat. Dengan prioritas pada pekerjaan yang sedang berjalan dan penanganan hambatan di lapangan secara cepat, target harian masih dapat dikejar.';
+  } else {
+    encouragement = 'Pencapaian PS/RE sudah mendekati target. Pertahankan ritme lapangan, rapikan sisa hambatan, dan pastikan pekerjaan yang diselesaikan tetap berkualitas.';
+  }
+
+  const h1Comparison = effectiveHour >= 8
+    ? ` Dibanding H-1 pada jam yang sama, pencapaian kini ${psReDifferenceText} dari ${area2PSREH1.toFixed(2)}% menjadi ${area2PSRE.toFixed(2)}%.`
+    : '';
+
+  const summaryLines = [
+    `*Summary Monitoring Pergerakan Order New Sales Indihome Area 2*`,
+    `Pada pukul ${String(effectiveHour).padStart(2, '0')}:00, Area 2 mencatat RE ${area2RE} dan PS ${area2PS}, dengan pencapaian PS/RE ${area2PSRE.toFixed(2)}%.${h1Comparison}`,
+    encouragement,
+    highestBranch && lowestBranch
+      ? `Performa paling kuat saat ini berada di *${highestBranch.branch}* dengan PS/RE ${highestBranch.psRe.toFixed(2)}% (H-1 ${highestBranch.psReH1.toFixed(2)}%), sedangkan yang masih paling perlu perhatian adalah *${lowestBranch.branch}* dengan ${lowestBranch.psRe.toFixed(2)}% (H-1 ${lowestBranch.psReH1.toFixed(2)}%).`
+      : '',
+  ].filter(Boolean);
+  const jamSummary = summaryLines.join('\n');
+
+  const copyJamSummary = async () => {
+    try {
+      await navigator.clipboard.writeText(jamSummary);
+      setCopyFeedback('Summary tersalin');
+      window.setTimeout(() => setCopyFeedback(''), 2000);
+    } catch (error) {
+      console.error('Copy failed:', error);
+      setCopyFeedback('Gagal menyalin');
+    }
+  };
+
   // ============================================
   // RENDER
   // ============================================
@@ -424,6 +495,39 @@ export default function TabelPerJam({
           })()}
         </tbody>
       </table>
+      <div data-export-ignore="true" className="mb-0 mt-4 w-full rounded-xl border border-blue-100 bg-blue-50 p-4">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-bold text-slate-800">Ringkasan Pergerakan Order</h3>
+          <button
+            type="button"
+            onClick={copyJamSummary}
+            className="shrink-0 rounded-lg bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-900"
+          >
+            Salin summary
+          </button>
+        </div>
+        <p className="text-xs leading-5 text-slate-700">
+          Pada pukul <span className="font-bold">{String(effectiveHour).padStart(2, '0')}:00</span>, Area 2 mencatat RE{' '}
+          <span className="font-bold text-blue-700">{area2RE}</span>, PS{' '}
+          <span className="font-bold text-green-700">{area2PS}</span>, PS/RE{' '}
+          <span className="font-bold">{area2PSRE.toFixed(2)}%</span>.
+          {effectiveHour >= 8 && (
+            <> Dibanding H-1 pada jam yang sama, pencapaian kini {psReDifferenceText} dari <span className="font-bold">{area2PSREH1.toFixed(2)}%</span> menjadi <span className="font-bold">{area2PSRE.toFixed(2)}%</span>.</>
+          )}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-700">{encouragement}</p>
+        {highestBranch && lowestBranch && (
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-green-200 bg-green-100 px-2.5 py-1 font-semibold text-green-800">
+              PS/RE Tertinggi: {highestBranch.branch} ({highestBranch.psRe.toFixed(2)}%, H-1 {highestBranch.psReH1.toFixed(2)}%)
+            </span>
+            <span className="rounded-full border border-red-200 bg-red-100 px-2.5 py-1 font-semibold text-red-800">
+              PS/RE Terendah: {lowestBranch.branch} ({lowestBranch.psRe.toFixed(2)}%, H-1 {lowestBranch.psReH1.toFixed(2)}%)
+            </span>
+          </div>
+        )}
+        {copyFeedback && <p className="mt-2 text-xs font-semibold text-green-700">{copyFeedback}</p>}
+      </div>
       </div>
     </div>
   );
